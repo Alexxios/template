@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -11,6 +12,9 @@ PROJECT_DIR = Path.cwd()
 PYTHON_MIN = "{{cookiecutter.python_min_version}}"
 PYTHON_MAX = "{{cookiecutter.python_version}}"
 INIT_GIT = "{{cookiecutter.init_git}}" == "yes"
+CI_SOURCECRAFT = "{{cookiecutter.ci_sourcecraft}}" == "yes"
+CI_GITHUB = "{{cookiecutter.ci_github}}" == "yes"
+CI_GITLAB = "{{cookiecutter.ci_gitlab}}" == "yes"
 
 
 def _parse(v: str) -> tuple[int, int]:
@@ -39,6 +43,15 @@ def patch_tox() -> None:
     tox.write_text(text.replace("__PY_FACTORS__", build_factor_list()))
 
 
+def prune_ci() -> None:
+    if not CI_SOURCECRAFT:
+        shutil.rmtree(PROJECT_DIR / ".sourcecraft", ignore_errors=True)
+    if not CI_GITHUB:
+        shutil.rmtree(PROJECT_DIR / ".github", ignore_errors=True)
+    if not CI_GITLAB:
+        (PROJECT_DIR / ".gitlab-ci.yml").unlink(missing_ok=True)
+
+
 def init_git() -> None:
     try:
         subprocess.run(["git", "init", "-q"], check=True, cwd=PROJECT_DIR)
@@ -54,6 +67,7 @@ def init_git() -> None:
 
 def main() -> None:
     patch_tox()
+    prune_ci()
     if INIT_GIT:
         init_git()
 

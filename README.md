@@ -44,6 +44,9 @@ You will be prompted for:
 | `python_min_version` | Lower bound; floor of the tox matrix and Poetry `python` constraint  |
 | `license`            | One of MIT, Apache-2.0, BSD-3-Clause, Proprietary                    |
 | `init_git`           | If `yes`, run `git init` and create an initial commit                |
+| `ci_sourcecraft`     | If `yes`, generate `.sourcecraft/ci.yaml` with test/lint/docs flows  |
+| `ci_github`          | If `yes`, generate `.github/workflows/ci.yml` with test/lint/docs    |
+| `ci_gitlab`          | If `yes`, generate `.gitlab-ci.yml` with test/lint/docs jobs         |
 
 ## After generation
 
@@ -58,5 +61,7 @@ poetry run mkdocs serve
 
 ## What's not included
 
-CI workflows, release automation, Docker, and type-checkers (mypy/ruff) are
-intentionally out of scope — add them per project.
+Release automation, Docker, and type-checkers (mypy/ruff) are intentionally
+out of scope — add them per project. CI is opt-in via the `ci_sourcecraft`,
+`ci_github`, and `ci_gitlab` flags; each enabled flag scaffolds parallel
+`test` / `lint` / `docs` flows for that provider.

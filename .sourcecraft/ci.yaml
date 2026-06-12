@@ -32,11 +32,36 @@ workflows:
                   -o "$GEN_ROOT"
                 cd "$GEN_ROOT/ci-test-project"
 
-                # 3. Sanity-check baseline render
+                # 3. Sanity-check baseline render (defaults: ci_sourcecraft=yes, ci_github=no, ci_gitlab=no)
                 test -f pyproject.toml
                 test -d src/ci_test_project
                 test -d tests/ci_test_project
                 grep -qE 'envlist\s*=\s*py312' tox.ini
+                test -f .sourcecraft/ci.yaml
+                test ! -e .github
+                test ! -e .gitlab-ci.yml
+
+                # 3a. Verify ci_* hook behavior with all three flags ON
+                ALL_ROOT="$(mktemp -d)"
+                cookiecutter --no-input "$TEMPLATE_DIR" \
+                  project_name="CI All Project" \
+                  python_version=3.12 python_min_version=3.12 \
+                  ci_sourcecraft=yes ci_github=yes ci_gitlab=yes \
+                  init_git=no -o "$ALL_ROOT"
+                test -f "$ALL_ROOT/ci-all-project/.sourcecraft/ci.yaml"
+                test -f "$ALL_ROOT/ci-all-project/.github/workflows/ci.yml"
+                test -f "$ALL_ROOT/ci-all-project/.gitlab-ci.yml"
+
+                # 3b. Verify ci_* hook behavior with all three flags OFF
+                NONE_ROOT="$(mktemp -d)"
+                cookiecutter --no-input "$TEMPLATE_DIR" \
+                  project_name="CI None Project" \
+                  python_version=3.12 python_min_version=3.12 \
+                  ci_sourcecraft=no ci_github=no ci_gitlab=no \
+                  init_git=no -o "$NONE_ROOT"
+                test ! -e "$NONE_ROOT/ci-none-project/.sourcecraft"
+                test ! -e "$NONE_ROOT/ci-none-project/.github"
+                test ! -e "$NONE_ROOT/ci-none-project/.gitlab-ci.yml"
 
                 # 4. Install dev tools so we can run scripts/new_package.py
                 poetry install --with dev --no-root
