@@ -24,13 +24,12 @@ workflows:
                 # 2. Generate project from this template, pinning Python to the image
                 TEMPLATE_DIR="$(pwd)"
                 GEN_ROOT="$(mktemp -d)"
-                >
-                cookiecutter --no-input "$TEMPLATE_DIR"
-                project_name="CI Test Project"
-                python_version=3.12
-                python_min_version=3.12
-                init_git=no
-                -o "$GEN_ROOT"
+                cookiecutter --no-input "$TEMPLATE_DIR" \
+                  project_name="CI Test Project" \
+                  python_version=3.12 \
+                  python_min_version=3.12 \
+                  init_git=no \
+                  -o "$GEN_ROOT"
                 cd "$GEN_ROOT/ci-test-project"
 
                 # 3. Sanity-check baseline render
