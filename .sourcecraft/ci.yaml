@@ -1,17 +1,70 @@
 on:
   push:
-    - workflows: [sample-workflow]
-      filter:
-        branches: ["master", "main"]
+    - workflows: [test-template-generation]
+  pull_request:
+    - workflows: [test-template-generation]
 
 workflows:
-  sample-workflow:
+  test-template-generation:
     runs_on: serverless # Experimental mode. For other options, see: https://sourcecraft.dev/portal/docs/ru/sourcecraft/ci-cd-ref/workflows
     tasks:
-      - name: sample-task
+      - name: generate-and-validate
         cubes:
-          - name: sample-cube1
-            image: cr.yandex/mirror/library/python:3.14.3-slim
+          - name: scaffold-and-test
+            image: cr.yandex/mirror/library/python:3.12-slim
             script:
-              - python -m pip install --upgrade pip
-              - if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+              - |
+                set -eux
+
+                # 1. Tooling
+                apt-get update && apt-get install -y --no-install-recommends git
+                python -m pip install --upgrade pip
+                pip install "poetry>=1.8" "cookiecutter>=2.6"
+
+                # 2. Generate project from this template, pinning Python to the image
+                TEMPLATE_DIR="$(pwd)"
+                GEN_ROOT="$(mktemp -d)"
+                cookiecutter --no-input "$TEMPLATE_DIR" \
+                  project_name="CI Test Project" \
+                  python_version=3.12 \
+                  python_min_version=3.12 \
+                  init_git=no \
+                  -o "$GEN_ROOT"
+                cd "$GEN_ROOT/ci-test-project"
+
+                # 3. Sanity-check baseline render
+                test -f pyproject.toml
+                test -d src/ci_test_project
+                test -d tests/ci_test_project
+                grep -qE 'envlist\s*=\s*py312' tox.ini
+
+                # 4. Install dev tools so we can run scripts/new_package.py
+                poetry install --with dev --no-root
+
+                # 5. Scaffold 3 additional packages via the in-project helper
+                poetry run python scripts/new_package.py --no-input package_name=pkg_alpha
+                poetry run python scripts/new_package.py --no-input package_name=pkg_beta
+                poetry run python scripts/new_package.py --no-input package_name=pkg_gamma
+
+                # 6. Validate filesystem + pyproject registration for the baseline package and all 3 new ones
+                for pkg in ci_test_project pkg_alpha pkg_beta pkg_gamma; do
+                  test -f "src/$pkg/__init__.py"     || { echo "MISSING src/$pkg/__init__.py";     exit 1; }
+                  test -f "src/$pkg/py.typed"        || { echo "MISSING src/$pkg/py.typed";        exit 1; }
+                  test -f "tests/$pkg/test_smoke.py" || { echo "MISSING tests/$pkg/test_smoke.py"; exit 1; }
+                  test ! -e "tests/$pkg/__init__.py" || { echo "UNEXPECTED tests/$pkg/__init__.py present (breaks src-layout import resolution)"; exit 1; }
+                  grep -qE "include\s*=\s*\"$pkg\"" pyproject.toml \
+                    || { echo "MISSING $pkg in pyproject.toml packages"; exit 1; }
+                done
+
+                # 7. Full install (project + all 4 packages + docs deps)
+                poetry install --with dev,docs
+
+                # 8. Validation gauntlet
+                poetry run pytest
+                poetry run black --check src tests
+                poetry run isort --check-only src tests
+                poetry run flake8 src tests
+                poetry run mkdocs build --strict
+
+                # 9. Run the generated project's own tox matrix (collapsed to py312, lint, docs)
+                poetry run tox
