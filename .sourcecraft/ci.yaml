@@ -50,8 +50,8 @@ workflows:
                 for pkg in ci_test_project pkg_alpha pkg_beta pkg_gamma; do
                   test -f "src/$pkg/__init__.py"     || { echo "MISSING src/$pkg/__init__.py";     exit 1; }
                   test -f "src/$pkg/py.typed"        || { echo "MISSING src/$pkg/py.typed";        exit 1; }
-                  test -f "tests/$pkg/__init__.py"   || { echo "MISSING tests/$pkg/__init__.py";   exit 1; }
                   test -f "tests/$pkg/test_smoke.py" || { echo "MISSING tests/$pkg/test_smoke.py"; exit 1; }
+                  test ! -e "tests/$pkg/__init__.py" || { echo "UNEXPECTED tests/$pkg/__init__.py present (breaks src-layout import resolution)"; exit 1; }
                   grep -qE "include\s*=\s*\"$pkg\"" pyproject.toml \
                     || { echo "MISSING $pkg in pyproject.toml packages"; exit 1; }
                 done
