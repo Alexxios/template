@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "{{cookiecutter.python_version}}"
+      - run: python -m pip install --upgrade pip
+      - run: pip install "poetry>=1.8"
+      - run: poetry install --with dev
+      - run: poetry run pytest
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "{{cookiecutter.python_version}}"
+      - run: python -m pip install --upgrade pip
+      - run: pip install "poetry>=1.8"
+      - run: poetry install --with dev --no-root
+      - run: poetry run black --check src tests
+      - run: poetry run isort --check-only src tests
+      - run: poetry run flake8 src tests
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "{{cookiecutter.python_version}}"
+      - run: python -m pip install --upgrade pip
+      - run: pip install "poetry>=1.8"
+      - run: poetry install --with docs --no-root
+      - run: poetry run mkdocs build --strict

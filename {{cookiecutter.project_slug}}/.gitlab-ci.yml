@@ -1,0 +1,28 @@
+default:
+  image: python:{{cookiecutter.python_version}}-slim
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install "poetry>=1.8"
+
+stages:
+  - check
+
+test:
+  stage: check
+  script:
+    - poetry install --with dev
+    - poetry run pytest
+
+lint:
+  stage: check
+  script:
+    - poetry install --with dev --no-root
+    - poetry run black --check src tests
+    - poetry run isort --check-only src tests
+    - poetry run flake8 src tests
+
+docs:
+  stage: check
+  script:
+    - poetry install --with docs --no-root
+    - poetry run mkdocs build --strict
