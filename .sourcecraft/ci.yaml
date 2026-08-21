@@ -86,9 +86,8 @@ workflows:
 
                 # 8. Validation gauntlet
                 poetry run pytest
-                poetry run black --check src tests
-                poetry run isort --check-only src tests
-                poetry run flake8 src tests
+                poetry run ruff check src tests
+                poetry run ruff format --check src tests
                 poetry run mkdocs build --strict
 
                 # 9. Run the generated project's own tox matrix (collapsed to py312, lint, docs)
