@@ -17,9 +17,8 @@ lint:
   stage: check
   script:
     - poetry install --with dev --no-root
-    - poetry run black --check src tests
-    - poetry run isort --check-only src tests
-    - poetry run flake8 src tests
+    - poetry run ruff check src tests
+    - poetry run ruff format --check src tests
 
 docs:
   stage: check
