@@ -3,8 +3,7 @@
 A [Cookiecutter](https://www.cookiecutter.io/) template for modern Python projects, pre-wired with:
 
 - **Poetry** for dependency management and packaging
-- **black** + **isort** for formatting
-- **flake8** for linting (black-compatible)
+- **Ruff** for both formatting and linting (replaces black/isort/flake8)
 - **pytest** + **coverage.py** (via `pytest-cov`) for tests
 - **tox** for multi-Python-version test matrix
 - **pre-commit** hooks for the formatters/linters
@@ -61,7 +60,7 @@ poetry run mkdocs serve
 
 ## What's not included
 
-Release automation, Docker, and type-checkers (mypy/ruff) are intentionally
+Release automation, Docker, and type-checkers (mypy/pyright) are intentionally
 out of scope — add them per project. CI is opt-in via the `ci_sourcecraft`,
 `ci_github`, and `ci_gitlab` flags; each enabled flag scaffolds parallel
 `test` / `lint` / `docs` flows for that provider.
