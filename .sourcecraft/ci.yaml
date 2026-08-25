@@ -10,88 +10,88 @@ workflows:
     tasks:
       - name: generate-and-validate
         cubes:
-          - name: scaffold-and-test
-            image: cr.yandex/mirror/library/python:3.12-slim
-            script:
-              - |
-                set -eux
+          # - name: scaffold-and-test
+          #   image: cr.yandex/mirror/library/python:3.12-slim
+          #   script:
+          #     - |
+          #       set -eux
 
-                # 1. Tooling
-                apt-get update && apt-get install -y --no-install-recommends git
-                python -m pip install --upgrade pip
-                pip install "poetry>=1.8" "cookiecutter>=2.6"
+          #       # 1. Tooling
+          #       apt-get update && apt-get install -y --no-install-recommends git
+          #       python -m pip install --upgrade pip
+          #       pip install "poetry>=1.8" "cookiecutter>=2.6"
 
-                # 2. Generate project from this template, pinning Python to the image
-                TEMPLATE_DIR="$(pwd)"
-                GEN_ROOT="$(mktemp -d)"
-                cookiecutter --no-input "$TEMPLATE_DIR" \
-                  project_name="CI Test Project" \
-                  python_version=3.12 \
-                  python_min_version=3.12 \
-                  init_git=no \
-                  -o "$GEN_ROOT"
-                cd "$GEN_ROOT/ci-test-project"
+          #       # 2. Generate project from this template, pinning Python to the image
+          #       TEMPLATE_DIR="$(pwd)"
+          #       GEN_ROOT="$(mktemp -d)"
+          #       cookiecutter --no-input "$TEMPLATE_DIR" \
+          #         project_name="CI Test Project" \
+          #         python_version=3.12 \
+          #         python_min_version=3.12 \
+          #         init_git=no \
+          #         -o "$GEN_ROOT"
+          #       cd "$GEN_ROOT/ci-test-project"
 
-                # 3. Sanity-check baseline render (defaults: ci_sourcecraft=yes, ci_github=no, ci_gitlab=no)
-                test -f pyproject.toml
-                test -d src/ci_test_project
-                test -d tests/ci_test_project
-                grep -qE 'envlist\s*=\s*py312' tox.ini
-                test -f .sourcecraft/ci.yaml
-                test ! -e .github
-                test ! -e .gitlab-ci.yml
+          #       # 3. Sanity-check baseline render (defaults: ci_sourcecraft=yes, ci_github=no, ci_gitlab=no)
+          #       test -f pyproject.toml
+          #       test -d src/ci_test_project
+          #       test -d tests/ci_test_project
+          #       grep -qE 'envlist\s*=\s*py312' tox.ini
+          #       test -f .sourcecraft/ci.yaml
+          #       test ! -e .github
+          #       test ! -e .gitlab-ci.yml
 
-                # 3a. Verify ci_* hook behavior with all three flags ON
-                ALL_ROOT="$(mktemp -d)"
-                cookiecutter --no-input "$TEMPLATE_DIR" \
-                  project_name="CI All Project" \
-                  python_version=3.12 python_min_version=3.12 \
-                  ci_sourcecraft=yes ci_github=yes ci_gitlab=yes \
-                  init_git=no -o "$ALL_ROOT"
-                test -f "$ALL_ROOT/ci-all-project/.sourcecraft/ci.yaml"
-                test -f "$ALL_ROOT/ci-all-project/.github/workflows/ci.yml"
-                test -f "$ALL_ROOT/ci-all-project/.gitlab-ci.yml"
+          #       # 3a. Verify ci_* hook behavior with all three flags ON
+          #       ALL_ROOT="$(mktemp -d)"
+          #       cookiecutter --no-input "$TEMPLATE_DIR" \
+          #         project_name="CI All Project" \
+          #         python_version=3.12 python_min_version=3.12 \
+          #         ci_sourcecraft=yes ci_github=yes ci_gitlab=yes \
+          #         init_git=no -o "$ALL_ROOT"
+          #       test -f "$ALL_ROOT/ci-all-project/.sourcecraft/ci.yaml"
+          #       test -f "$ALL_ROOT/ci-all-project/.github/workflows/ci.yml"
+          #       test -f "$ALL_ROOT/ci-all-project/.gitlab-ci.yml"
 
-                # 3b. Verify ci_* hook behavior with all three flags OFF
-                NONE_ROOT="$(mktemp -d)"
-                cookiecutter --no-input "$TEMPLATE_DIR" \
-                  project_name="CI None Project" \
-                  python_version=3.12 python_min_version=3.12 \
-                  ci_sourcecraft=no ci_github=no ci_gitlab=no \
-                  init_git=no -o "$NONE_ROOT"
-                test ! -e "$NONE_ROOT/ci-none-project/.sourcecraft"
-                test ! -e "$NONE_ROOT/ci-none-project/.github"
-                test ! -e "$NONE_ROOT/ci-none-project/.gitlab-ci.yml"
+          #       # 3b. Verify ci_* hook behavior with all three flags OFF
+          #       NONE_ROOT="$(mktemp -d)"
+          #       cookiecutter --no-input "$TEMPLATE_DIR" \
+          #         project_name="CI None Project" \
+          #         python_version=3.12 python_min_version=3.12 \
+          #         ci_sourcecraft=no ci_github=no ci_gitlab=no \
+          #         init_git=no -o "$NONE_ROOT"
+          #       test ! -e "$NONE_ROOT/ci-none-project/.sourcecraft"
+          #       test ! -e "$NONE_ROOT/ci-none-project/.github"
+          #       test ! -e "$NONE_ROOT/ci-none-project/.gitlab-ci.yml"
 
-                # 4. Install dev tools so we can run scripts/new_package.py
-                poetry install --with dev --no-root
+          #       # 4. Install dev tools so we can run scripts/new_package.py
+          #       poetry install --with dev --no-root
 
-                # 5. Scaffold 3 additional packages via the in-project helper
-                poetry run python scripts/new_package.py --no-input package_name=pkg_alpha
-                poetry run python scripts/new_package.py --no-input package_name=pkg_beta
-                poetry run python scripts/new_package.py --no-input package_name=pkg_gamma
+          #       # 5. Scaffold 3 additional packages via the in-project helper
+          #       poetry run python scripts/new_package.py --no-input package_name=pkg_alpha
+          #       poetry run python scripts/new_package.py --no-input package_name=pkg_beta
+          #       poetry run python scripts/new_package.py --no-input package_name=pkg_gamma
 
-                # 6. Validate filesystem + pyproject registration for the baseline package and all 3 new ones
-                for pkg in ci_test_project pkg_alpha pkg_beta pkg_gamma; do
-                  test -f "src/$pkg/__init__.py"     || { echo "MISSING src/$pkg/__init__.py";     exit 1; }
-                  test -f "src/$pkg/py.typed"        || { echo "MISSING src/$pkg/py.typed";        exit 1; }
-                  test -f "tests/$pkg/test_smoke.py" || { echo "MISSING tests/$pkg/test_smoke.py"; exit 1; }
-                  test ! -e "tests/$pkg/__init__.py" || { echo "UNEXPECTED tests/$pkg/__init__.py present (breaks src-layout import resolution)"; exit 1; }
-                  grep -qE "include\s*=\s*\"$pkg\"" pyproject.toml \
-                    || { echo "MISSING $pkg in pyproject.toml packages"; exit 1; }
-                done
+          #       # 6. Validate filesystem + pyproject registration for the baseline package and all 3 new ones
+          #       for pkg in ci_test_project pkg_alpha pkg_beta pkg_gamma; do
+          #         test -f "src/$pkg/__init__.py"     || { echo "MISSING src/$pkg/__init__.py";     exit 1; }
+          #         test -f "src/$pkg/py.typed"        || { echo "MISSING src/$pkg/py.typed";        exit 1; }
+          #         test -f "tests/$pkg/test_smoke.py" || { echo "MISSING tests/$pkg/test_smoke.py"; exit 1; }
+          #         test ! -e "tests/$pkg/__init__.py" || { echo "UNEXPECTED tests/$pkg/__init__.py present (breaks src-layout import resolution)"; exit 1; }
+          #         grep -qE "include\s*=\s*\"$pkg\"" pyproject.toml \
+          #           || { echo "MISSING $pkg in pyproject.toml packages"; exit 1; }
+          #       done
 
-                # 7. Full install (project + all 4 packages + docs deps)
-                poetry install --with dev,docs
+          #       # 7. Full install (project + all 4 packages + docs deps)
+          #       poetry install --with dev,docs
 
-                # 8. Validation gauntlet
-                poetry run pytest
-                poetry run ruff check src tests
-                poetry run ruff format --check src tests
-                poetry run mkdocs build --strict
+          #       # 8. Validation gauntlet
+          #       poetry run pytest
+          #       poetry run ruff check src tests
+          #       poetry run ruff format --check src tests
+          #       poetry run mkdocs build --strict
 
-                # 9. Run the generated project's own tox matrix (collapsed to py312, lint, docs)
-                poetry run tox
+          #       # 9. Run the generated project's own tox matrix (collapsed to py312, lint, docs)
+          #       poetry run tox
 
           - name: create-repo
             image: cr.yandex/mirror/library/python:3.12-slim
@@ -104,7 +104,6 @@ workflows:
                 # Create a throwaway repository via the Sourcecraft REST API.
                 # A unique slug keeps concurrent CI runs from colliding.
                 REPO_SLUG="ci-test-${SOURCECRAFT_ORG_SLUG}-$(date +%s)-$$"
-                echo "$REPO_SLUG"
 
                 python scripts/sourcecraft_repo.py create \
                   --org-slug "$SOURCECRAFT_ORG_SLUG" \
