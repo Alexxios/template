@@ -42,7 +42,7 @@ workflows:
                 set -eux
 
                 REPO_SLUG="$(cat .ci_repo_slug)"
-                REPO_URL="https://$git@git.sourcecraft.dev/${SOURCECRAFT_ORG_SLUG}/${REPO_SLUG}.git"
+                REPO_URL="https://git@git.sourcecraft.dev/${SOURCECRAFT_ORG_SLUG}/${REPO_SLUG}.git"
 
                 # Configure git globally so cookiecutter's init_git hook can commit.
                 git config --global user.name "CI Bot"
