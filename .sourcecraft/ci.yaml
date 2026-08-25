@@ -98,6 +98,7 @@ workflows:
             env:
               SOURCECRAFT_ORG_SLUG: lexxi-0
               SOURCECRAFT_LOG_FILE: ./stdout.log
+              SOURCECRAFT_API_TOKEN: {{ secrets.ci }}
             script:
               - |
                 set -eux
@@ -116,9 +117,7 @@ workflows:
 
                 # Persist the slug so the downstream delete-repo cube can clean it up.
                 echo "$REPO_SLUG" > .ci_repo_slug
-            artifacts:
-              paths:
-                - ./stdout.log
+
 
           - name: delete-repo
             image: cr.yandex/mirror/library/python:3.12-slim
