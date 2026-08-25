@@ -112,10 +112,10 @@ workflows:
                 poetry run tox
 
                 # 10. Commit any changes from scaffolding new packages and push to the temporary repository
-                git add -A
-                git commit -m "Scaffold additional packages" || true
+                git add -v -A
+                git commit -v -m "Scaffold additional packages" || true
                 git remote add origin "$REPO_URL"
-                git -c credential.helper='!f() { echo "username=$SOURCECRAFT_USERNAME"; echo "password=$SOURCECRAFT_API_TOKEN"; }; f' push -u origin main
+                git -c credential.helper='!f() { echo "username=$SOURCECRAFT_USERNAME"; echo "password=$SOURCECRAFT_API_TOKEN"; }; f' push -v -u origin main
 
           # - name: delete-repo
           #   image: cr.yandex/mirror/library/python:3.12-slim
