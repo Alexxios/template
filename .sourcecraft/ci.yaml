@@ -4,6 +4,11 @@ on:
   pull_request:
     - workflows: [test-template-generation]
 
+# Здесь определяются переменные с глобальной областью видимости,
+# они будут переданы во все кубики всех заданий во всех рабочих процессах
+env:
+  GLOBAL_VAR: global_var
+
 workflows:
   test-template-generation:
     runs_on: serverless # Experimental mode. For other options, see: https://sourcecraft.dev/portal/docs/ru/sourcecraft/ci-cd-ref/workflows
@@ -92,3 +97,16 @@ workflows:
 
                 # 9. Run the generated project's own tox matrix (collapsed to py312, lint, docs)
                 poetry run tox
+
+  my-workflow:
+    # Здесь определяются переменные, которые будут доступны во всех кубиках
+    # всех заданий рабочего процесса my-workflow
+    env:
+      WORKFLOW_VAR: workflow-var
+    tasks:
+      - name: my-task-2
+        cubes:
+          - name: my-cube-3
+            script:
+              - echo "$WORKFLOW_VAR"
+              - echo "$GLOBAL_VAR"
