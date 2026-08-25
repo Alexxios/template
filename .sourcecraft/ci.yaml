@@ -42,7 +42,7 @@ workflows:
                 set -eux
 
                 REPO_SLUG="$(cat .ci_repo_slug)"
-                REPO_URL="https://git@git.sourcecraft.dev/${SOURCECRAFT_ORG_SLUG}/${REPO_SLUG}.git"
+                REPO_URL="https://git.sourcecraft.dev/${SOURCECRAFT_ORG_SLUG}/${REPO_SLUG}.git"
 
                 # 1. Tooling
                 apt-get update && apt-get install -y --no-install-recommends git
@@ -108,7 +108,7 @@ workflows:
                 git add -A
                 git commit -m "Scaffold additional packages" || true
                 git remote add origin "$REPO_URL"
-                git push -u origin main
+                git -c credential.helper='!f() { echo "username=$SOURCECRAFT_USERNAME"; echo "password=$SOURCECRAFT_API_TOKEN"; }; f' push -u origin main
 
           # - name: delete-repo
           #   image: cr.yandex/mirror/library/python:3.12-slim
