@@ -45,14 +45,26 @@ API_BASE = "https://api.sourcecraft.tech"
 # via SOURCECRAFT_API_TOKEN for local development.
 TOKEN_ENVS = ("SOURCECRAFT_API_TOKEN", "SOURCECRAFT_TOKEN")
 
-logger = logging.getLogger("sourcecraft_repo")
+logger = logging.getLogger()
 
 
 def _configure_logging() -> None:
-    logging.basicConfig(
-        level=logging.DEBUG,
-        stream=sys.stderr,
-    )
+    """Configure logging to write to stderr with immediate flushing.
+
+    CI systems may buffer stdout/stderr, so we force flush after each log record
+    to ensure logs appear even if the script crashes.
+    """
+    handler = logging.StreamHandler(sys.stderr)
+    # Ensure each log record is immediately flushed to the stream
+    original_emit = handler.emit
+    def emit_with_flush(record):
+        original_emit(record)
+        handler.flush()
+    handler.emit = emit_with_flush
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+    root_logger.addHandler(handler)
 
 
 def _require_token() -> str:
