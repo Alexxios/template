@@ -98,7 +98,7 @@ workflows:
             env:
               SOURCECRAFT_ORG_SLUG: lexxi-0
               SOURCECRAFT_LOG_FILE: ./stdout.log
-              SOURCECRAFT_API_TOKEN: {{ secrets.ci }}
+              SOURCECRAFT_API_TOKEN: ${{ secrets.ci }}
             script:
               - |
                 set -eux
