@@ -49,22 +49,37 @@ logger = logging.getLogger()
 
 
 def _configure_logging() -> None:
-    """Configure logging to write to stderr with immediate flushing.
+    """Configure logging to write to both a file (for CI artifacts) and stderr.
 
+    When the SOURCECRAFT_LOG_FILE environment variable is set (by CI), logs are
+    written to that file *and* stderr. Otherwise, logs go to stderr only.
     CI systems may buffer stdout/stderr, so we force flush after each log record
     to ensure logs appear even if the script crashes.
     """
-    handler = logging.StreamHandler(sys.stderr)
-    # Ensure each log record is immediately flushed to the stream
-    original_emit = handler.emit
-    def emit_with_flush(record):
-        original_emit(record)
-        handler.flush()
-    handler.emit = emit_with_flush
+    log_file = os.environ.get("SOURCECRAFT_LOG_FILE", "").strip()
+
+    def _make_handler(stream):
+        handler = logging.StreamHandler(stream)
+        original_emit = handler.emit
+        def emit_with_flush(record):
+            original_emit(record)
+            handler.flush()
+        handler.emit = emit_with_flush
+        return handler
 
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
-    root_logger.addHandler(handler)
+
+    # Always log to stderr for immediate visibility.
+    root_logger.addHandler(_make_handler(sys.stderr))
+
+    # When running under CI, also write to the artifact file so the runner
+    # can attach it to the job report.
+    if log_file:
+        os.makedirs(os.path.dirname(log_file) or ".", exist_ok=True)
+        with open(log_file, "a", encoding="utf-8") as fh:
+            root_logger.addHandler(_make_handler(fh))
+        logger.debug("logging to artifact file %s", log_file)
 
 
 def _require_token() -> str:
