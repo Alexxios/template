@@ -101,7 +101,6 @@ workflows:
             image: cr.yandex/mirror/library/python:3.12-slim
             env:
               SOURCECRAFT_ORG_SLUG: lexxi-0
-              SOURCECRAFT_API_TOKEN: ${{ secrets.ci }}
             script:
               - |
                 set -eux
@@ -124,12 +123,9 @@ workflows:
             image: cr.yandex/mirror/library/python:3.12-slim
             env:
               SOURCECRAFT_ORG_SLUG: lexxi-0
-              SOURCECRAFT_LOG_FILE: ./stdout.log
             script:
               - |
                 set -eux
-                touch ./stdout.log
-                echo "KILLME" > ./stdout.log
 
                 # Best-effort cleanup: always run, even if earlier steps failed.
                 if [ -f .ci_repo_slug ]; then
@@ -141,6 +137,3 @@ workflows:
                 else
                   echo "info: no .ci_repo_slug file found, nothing to delete"
                 fi
-            artifacts:
-              paths:
-                - ./stdout.log
