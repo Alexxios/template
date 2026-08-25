@@ -84,10 +84,10 @@ workflows:
                 poetry run python scripts/new_package.py --no-input package_name=pkg_gamma
 
                 # 10. Commit any changes from scaffolding new packages and push to the temporary repository
-                git add -A
-                git commit -m "Scaffold additional packages" || true
+                git add -v -A
+                git commit -v -m "Scaffold additional packages" || true
                 git remote add origin "$REPO_URL"
-                git -c credential.helper='!f() { echo "username=$SOURCECRAFT_USERNAME"; echo "password=$SOURCECRAFT_API_TOKEN"; }; f' push -u origin main
+                git -c credential.helper='!f() { echo "username=$SOURCECRAFT_USERNAME"; echo "password=$SOURCECRAFT_API_TOKEN"; }; f' push -v -u origin main
 
                 # 6. Validate filesystem + pyproject registration for the baseline package and all 3 new ones
                 for pkg in ci_test_project pkg_alpha pkg_beta pkg_gamma; do
