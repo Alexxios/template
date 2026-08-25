@@ -75,6 +75,7 @@ def _request(
     accept: int = 200,
 ) -> tuple[int, dict[str, Any] | str]:
     """Perform an HTTP request and return (status, parsed_body)."""
+    log.info("%s %s (expecting HTTP %d)", method, url, accept)
     headers = {
         "Authorization": f"Bearer {token}",
         "Accept": "application/json",
@@ -83,6 +84,7 @@ def _request(
     if payload is not None:
         data = json.dumps(payload).encode("utf-8")
         headers["Content-Type"] = "application/json"
+        log.debug("request payload: %s", json.dumps(payload))
 
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
@@ -92,8 +94,10 @@ def _request(
     except urllib.error.HTTPError as exc:
         status = exc.code
         body = exc.read().decode("utf-8")
+        log.warning("HTTP %d from %s %s", status, method, url)
     except urllib.error.URLError as exc:
-        sys.exit(f"error: network failure contacting Sourcecraft API: {exc.reason}")
+        log.error("network failure contacting Sourcecraft API: %s", exc.reason)
+        sys.exit(1)
 
     parsed: dict[str, Any] | str
     if not body:
@@ -106,10 +110,9 @@ def _request(
 
     if status != accept:
         message = parsed if isinstance(parsed, str) else json.dumps(parsed, indent=2)
-        sys.exit(
-            f"error: {method} {url} returned HTTP {status} (expected {accept}):\n"
-            f"{message}"
-        )
+        log.error("%s %s returned HTTP %d (expected %d):\n%s", method, url, status, accept, message)
+        sys.exit(1)
+    log.info("%s %s -> HTTP %d OK", method, url, status)
     return status, parsed
 
 
@@ -129,14 +132,18 @@ def cmd_create(args: argparse.Namespace) -> None:
             "create_readme": args.create_readme,
         }
 
+    log.info(
+        "creating repository slug=%s org=%s visibility=%s",
+        args.repo_slug, args.org_slug, args.visibility,
+    )
     status, body = _request("POST", url, token, payload=payload, accept=201)
     assert isinstance(body, dict)
     repo_id = body.get("id", "<unknown>")
     repo_slug = body.get("slug", args.repo_slug)
     web_url = body.get("web_url", "")
-    print(f"Created repository '{repo_slug}' (id={repo_id})")
+    log.info("created repository %s (id=%s)", repo_slug, repo_id)
     if web_url:
-        print(f"  web_url: {web_url}")
+        log.info("web_url: %s", web_url)
 
     # Emit a machine-readable line for downstream CI steps.
     print(f"::set-output name=repo_id::{repo_id}")
@@ -146,8 +153,9 @@ def cmd_create(args: argparse.Namespace) -> None:
 def cmd_delete(args: argparse.Namespace) -> None:
     token = _require_token()
     url = f"{API_BASE}/repos/{args.org_slug}/{args.repo_slug}"
+    log.info("deleting repository slug=%s org=%s", args.repo_slug, args.org_slug)
     status, body = _request("DELETE", url, token, accept=204)
-    print(f"Deleted repository '{args.repo_slug}' from org '{args.org_slug}'")
+    log.info("deleted repository %s from org %s", args.repo_slug, args.org_slug)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -199,8 +207,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> None:
+    _configure_logging()
     parser = build_parser()
     args = parser.parse_args(argv)
+    log.debug("parsed args: %s", args)
     args.func(args)
 
 

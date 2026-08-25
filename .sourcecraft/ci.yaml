@@ -104,6 +104,7 @@ workflows:
                 # Create a throwaway repository via the Sourcecraft REST API.
                 # A unique slug keeps concurrent CI runs from colliding.
                 REPO_SLUG="ci-test-${SOURCECRAFT_ORG_SLUG}-$(date +%s)-$$"
+                echo "$REPO_SLUG"
 
                 python scripts/sourcecraft_repo.py create \
                   --org-slug "$SOURCECRAFT_ORG_SLUG" \
