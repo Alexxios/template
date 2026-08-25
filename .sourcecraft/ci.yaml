@@ -44,14 +44,14 @@ workflows:
                 REPO_SLUG="$(cat .ci_repo_slug)"
                 REPO_URL="https://git@git.sourcecraft.dev/${SOURCECRAFT_ORG_SLUG}/${REPO_SLUG}.git"
 
-                # Configure git globally so cookiecutter's init_git hook can commit.
-                git config --global user.name "CI Bot"
-                git config --global user.email "ci@sourcecraft.dev"
-
                 # 1. Tooling
                 apt-get update && apt-get install -y --no-install-recommends git
                 python -m pip install --upgrade pip
                 pip install "poetry>=1.8" "cookiecutter>=2.6"
+
+                # Configure git globally so cookiecutter's init_git hook can commit.
+                git config --global user.name "CI Bot"
+                git config --global user.email "ci@sourcecraft.dev"
 
                 # 2. Generate project from this template (defaults: ci_sourcecraft=yes, ci_github=no, ci_gitlab=no)
                 #    init_git=yes lets the post_gen hook handle git init + add + commit.
