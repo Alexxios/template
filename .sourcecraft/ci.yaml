@@ -101,6 +101,8 @@ workflows:
             script:
               - |
                 set -eux
+                touch ./stdout.log
+                echo "KILLME" > ./stdout.log
 
                 # Create a throwaway repository via the Sourcecraft REST API.
                 # A unique slug keeps concurrent CI runs from colliding.
@@ -126,6 +128,8 @@ workflows:
             script:
               - |
                 set -eux
+                touch ./stdout.log
+                echo "KILLME" > ./stdout.log
 
                 # Best-effort cleanup: always run, even if earlier steps failed.
                 if [ -f .ci_repo_slug ]; then
