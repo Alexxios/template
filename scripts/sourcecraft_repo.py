@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import sys
 import urllib.error
@@ -44,16 +45,25 @@ API_BASE = "https://api.sourcecraft.tech"
 # via SOURCECRAFT_API_TOKEN for local development.
 TOKEN_ENVS = ("SOURCECRAFT_API_TOKEN", "SOURCECRAFT_TOKEN")
 
+log = logging.getLogger("sourcecraft_repo")
+
+
+def _configure_logging() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%SZ",
+    )
+
 
 def _require_token() -> str:
     for env in TOKEN_ENVS:
         token = os.environ.get(env, "").strip()
         if token:
+            log.debug("using API token from %s", env)
             return token
-    sys.exit(
-        f"error: no API token found in {'/'.join(TOKEN_ENVS)}; "
-        f"set one to perform repository operations"
-    )
+    log.error("no API token found in %s; set one to perform repository operations", "/".join(TOKEN_ENVS))
+    sys.exit(1)
 
 
 def _request(
