@@ -92,3 +92,43 @@ workflows:
 
                 # 9. Run the generated project's own tox matrix (collapsed to py312, lint, docs)
                 poetry run tox
+
+          - name: create-repo
+            image: cr.yandex/mirror/library/python:3.12-slim
+            env:
+              SOURCECRAFT_ORG_SLUG: lexxi-0
+            script:
+              - |
+                set -eux
+
+                # Create a throwaway repository via the Sourcecraft REST API.
+                # A unique slug keeps concurrent CI runs from colliding.
+                REPO_SLUG="ci-test-${SOURCECRAFT_ORG_SLUG}-$(date +%s)-$$"
+
+                python scripts/sourcecraft_repo.py create \
+                  --org-slug "$SOURCECRAFT_ORG_SLUG" \
+                  --repo-slug "$REPO_SLUG" \
+                  --visibility private \
+                  --description "Ephemeral repo created by CI for template validation"
+
+                # Persist the slug so the downstream delete-repo cube can clean it up.
+                echo "$REPO_SLUG" > .ci_repo_slug
+
+          - name: delete-repo
+            image: cr.yandex/mirror/library/python:3.12-slim
+            env:
+              SOURCECRAFT_ORG_SLUG: lexxi-0
+            script:
+              - |
+                set -eux
+
+                # Best-effort cleanup: always run, even if earlier steps failed.
+                if [ -f .ci_repo_slug ]; then
+                  REPO_SLUG="$(cat .ci_repo_slug)"
+                  python scripts/sourcecraft_repo.py delete \
+                    --org-slug "$SOURCECRAFT_ORG_SLUG" \
+                    --repo-slug "$REPO_SLUG" \
+                    || echo "warn: failed to delete '$REPO_SLUG' (may already be gone)"
+                else
+                  echo "info: no .ci_repo_slug file found, nothing to delete"
+                fi
