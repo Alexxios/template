@@ -36,6 +36,7 @@ import json
 import logging
 import os
 import sys
+import time
 import urllib.error
 import urllib.request
 from typing import Any
@@ -184,6 +185,67 @@ def cmd_delete(args: argparse.Namespace) -> None:
     logger.info("deleted repository %s from org %s", args.repo_slug, args.org_slug)
 
 
+def cmd_cicd_wait(args: argparse.Namespace) -> None:
+    """Poll a CI/CD run until it reaches a terminal status.
+
+    If --run-slug is not provided, the latest run is discovered via the
+    ListRuns API (GET /repos/{org}/{repo}/cicd/runs).
+    """
+    token = _require_token()
+    terminal_statuses = {"success", "failed", "canceled", "timeout"}
+
+    # Resolve run slug: use explicit value or discover the latest run.
+    run_slug: str
+    if args.run_slug:
+        run_slug = args.run_slug
+    else:
+        list_url = f"{API_BASE}/repos/{args.org_slug}/{args.repo_slug}/cicd/runs"
+        logger.info("discovering latest run via %s", list_url)
+        _, list_body = _request("GET", list_url, token, accept=200)
+        assert isinstance(list_body, dict)
+        runs = list_body.get("runs", [])
+        if not runs:
+            logger.error("no CI runs found for %s/%s", args.org_slug, args.repo_slug)
+            sys.exit(1)
+        # The API returns runs sorted by creation time (newest first).
+        run_slug = runs[0]["slug"]
+        logger.info("discovered latest run: slug=%s", run_slug)
+
+    url = f"{API_BASE}/repos/{args.org_slug}/{args.repo_slug}/cicd/runs/{run_slug}"
+
+    logger.info(
+        "waiting for run %s on %s/%s (interval=%ds, max_attempts=%d)",
+        run_slug, args.org_slug, args.repo_slug,
+        args.polling_interval, args.max_attempts,
+    )
+
+    for attempt in range(1, args.max_attempts + 1):
+        _, body = _request("GET", url, token, accept=200)
+        assert isinstance(body, dict)
+        status = body.get("status", "<unknown>")
+        logger.debug("poll #%d: status=%s", attempt, status)
+
+        if status in terminal_statuses:
+            logger.info("run reached terminal status: %s", status)
+            if status == "success":
+                print(f"::set-output name=final_status::{status}")
+                return
+            # Failed, canceled, or timed out.
+            error_messages = body.get("error_messages", [])
+            if error_messages:
+                logger.error("run error messages: %s", error_messages)
+            print(f"::set-output name=final_status::{status}")
+            logger.error("run did not succeed (status=%s)", status)
+            sys.exit(1)
+
+        if attempt == args.max_attempts:
+            logger.error("exceeded max attempts (%d) without reaching terminal status (last: %s)", args.max_attempts, status)
+            sys.exit(1)
+
+        logger.debug("waiting %ds before next poll...", args.polling_interval)
+        time.sleep(args.polling_interval)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Create or delete a Sourcecraft repository via the REST API."
@@ -228,6 +290,26 @@ def build_parser() -> argparse.ArgumentParser:
         "--repo-slug", required=True, help="Slug of the repository to delete."
     )
     p_delete.set_defaults(func=cmd_delete)
+
+    # --- cicd-wait ---
+    p_wait = sub.add_parser("cicd-wait", help="Wait for a CI/CD run to reach a terminal status.")
+    p_wait.add_argument("--org-slug", **common_org, required=True)
+    p_wait.add_argument(
+        "--repo-slug", required=True, help="Slug of the repository."
+    )
+    p_wait.add_argument(
+        "--run-slug", default=None,
+        help="Slug of the CI run to wait for (default: discover the latest run).",
+    )
+    p_wait.add_argument(
+        "--polling-interval", type=int, default=15,
+        help="Seconds between polls (default: 15).",
+    )
+    p_wait.add_argument(
+        "--max-attempts", type=int, default=120,
+        help="Maximum number of polls before giving up (default: 120 = 30 min).",
+    )
+    p_wait.set_defaults(func=cmd_cicd_wait)
 
     return parser
 

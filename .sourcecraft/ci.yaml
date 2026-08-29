@@ -93,24 +93,34 @@ workflows:
                     || { echo "MISSING $pkg in pyproject.toml packages"; exit 1; }
                 done
 
-                # 7. Full install (project + all 4 packages + docs deps)
-                poetry install --with dev,docs
-
-                # 8. Validation gauntlet
-                poetry run pytest
-                poetry run ruff check src tests
-                poetry run ruff format --check src tests
-                poetry run mkdocs build --strict
-
-                # 9. Run the generated project's own tox matrix (collapsed to py312, lint, docs)
-                poetry run tox
-
-                # 10. Commit any changes from scaffolding new packages and push to the temporary repository
+                # 7. Commit scaffolding changes and push to the temporary repository.
+                #    The generated repo's own CI (.sourcecraft/ci.yaml) will handle
+                #    pytest, ruff, mkdocs, and tox validation on push.
                 git add -v -A
                 git commit -v -m "Scaffold additional packages" || true
                 git branch -M main
                 git remote add origin "$REPO_URL"
                 git -c credential.helper='!f() { echo "username=$SOURCECRAFT_USERNAME"; echo "password=$SOURCECRAFT_API_TOKEN"; }; f' push -v -u origin main
+
+          - name: wait-for-ci
+            image: cr.yandex/mirror/library/python:3.12-slim
+            env:
+              SOURCECRAFT_ORG_SLUG: lexxi-0
+              SOURCECRAFT_API_TOKEN: ${{ secrets.ci }}
+            script:
+              - |
+                set -eux
+
+                REPO_SLUG="$(cat .ci_repo_slug)"
+
+                # Wait for the CI workflow in the generated repo to complete.
+                # The --run-slug is omitted so the script auto-discovers the latest run
+                # triggered by the push above.
+                python scripts/sourcecraft_repo.py cicd-wait \
+                  --org-slug "$SOURCECRAFT_ORG_SLUG" \
+                  --repo-slug "$REPO_SLUG" \
+                  --polling-interval 15 \
+                  --max-attempts 120
 
           - name: delete-repo
             image: cr.yandex/mirror/library/python:3.12-slim
