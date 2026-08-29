@@ -20,19 +20,23 @@ workflows:
                 python -m pip install --upgrade pip
                 pip install "poetry>=1.8"
                 poetry install --with dev
+                # pytest writes raw Allure data into ./allure-results (see --alluredir in pyproject.toml).
+                # The results live in the workspace, so the next cube can pick them up.
                 poetry run pytest
 
-                # Build a static, self-contained Allure report from the raw results
-                # produced by pytest's --alluredir option, and store it as a cube artifact.
-                # The Allure CLI is a Java app, so a JRE is required at runtime.
-                apt-get update && apt-get install -y --no-install-recommends \
-                    wget ca-certificates default-jre-headless
-                wget -qO /tmp/allure.tgz https://github.com/allure-framework/allure2/releases/download/2.29.0/allure-2.29.0.tgz
-                tar -xzf /tmp/allure.tgz -C /opt
-                /opt/allure-2.29.0/bin/allure generate allure-results -o allure-report --clean
+          - name: allure
+            image: docker.io/library/node
+            script:
+              - |
+                set -eux
+                # Allure 3 CLI is a Node app distributed via npm; run it through npx
+                # so no global install is needed. --single-file produces one
+                # self-contained index.html embedding the whole report, which is
+                # convenient to store as a single cube artifact.
+                npx --yes allure@3 generate allure-results -o allure-report --clean --single-file
             artifacts:
               paths:
-                - ./allure-report
+                - ./allure-report/index.html
 
       - name: lint
         cubes:
