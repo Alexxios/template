@@ -10,29 +10,63 @@ workflows:
     tasks:
       - name: generate-and-validate
         cubes:
-          - name: scaffold-and-test
+          - name: create-repo
             image: cr.yandex/mirror/library/python:3.12-slim
+            env:
+              SOURCECRAFT_ORG_SLUG: lexxi-0
+              SOURCECRAFT_API_TOKEN: ${{ secrets.ci }}
             script:
               - |
                 set -eux
+
+                # Create a throwaway repository via the Sourcecraft REST API.
+                # A unique slug keeps concurrent CI runs from colliding.
+                REPO_SLUG="ci-test-${SOURCECRAFT_ORG_SLUG}-$(date +%s)-$$"
+
+                python scripts/sourcecraft_repo.py create \
+                  --org-slug "$SOURCECRAFT_ORG_SLUG" \
+                  --repo-slug "$REPO_SLUG" \
+                  --visibility private \
+                  --description "Ephemeral repo created by CI for template validation"
+
+                # Persist the slug so downstream cubes can push/clean up.
+                echo "$REPO_SLUG" > .ci_repo_slug
+
+          - name: scaffold-and-push
+            image: cr.yandex/mirror/library/python:3.12-slim
+            env:
+              SOURCECRAFT_ORG_SLUG: lexxi-0
+              SOURCECRAFT_API_TOKEN: ${{ secrets.ci }}
+            script:
+              - |
+                set -eux
+
+                REPO_SLUG="$(cat .ci_repo_slug)"
+                REPO_URL="https://git@git.sourcecraft.dev/${SOURCECRAFT_ORG_SLUG}/${REPO_SLUG}.git"
+                echo "$REPO_URL"
 
                 # 1. Tooling
                 apt-get update && apt-get install -y --no-install-recommends git
                 python -m pip install --upgrade pip
                 pip install "poetry>=1.8" "cookiecutter>=2.6"
 
-                # 2. Generate project from this template, pinning Python to the image
+                # Configure git globally so cookiecutter's init_git hook can commit.
+                git config --global user.name "CI Bot"
+                git config --global user.email "ci@sourcecraft.dev"
+
+                # 2. Generate project from this template (defaults: ci_sourcecraft=yes, ci_github=no, ci_gitlab=no)
+                #    init_git=yes lets the post_gen hook handle git init + add + commit.
                 TEMPLATE_DIR="$(pwd)"
                 GEN_ROOT="$(mktemp -d)"
                 cookiecutter --no-input "$TEMPLATE_DIR" \
                   project_name="CI Test Project" \
                   python_version=3.12 \
                   python_min_version=3.12 \
-                  init_git=no \
+                  init_git=yes \
                   -o "$GEN_ROOT"
                 cd "$GEN_ROOT/ci-test-project"
 
-                # 3. Sanity-check baseline render (defaults: ci_sourcecraft=yes, ci_github=no, ci_gitlab=no)
+                # 3. Sanity-check baseline render
                 test -f pyproject.toml
                 test -d src/ci_test_project
                 test -d tests/ci_test_project
@@ -40,28 +74,6 @@ workflows:
                 test -f .sourcecraft/ci.yaml
                 test ! -e .github
                 test ! -e .gitlab-ci.yml
-
-                # 3a. Verify ci_* hook behavior with all three flags ON
-                ALL_ROOT="$(mktemp -d)"
-                cookiecutter --no-input "$TEMPLATE_DIR" \
-                  project_name="CI All Project" \
-                  python_version=3.12 python_min_version=3.12 \
-                  ci_sourcecraft=yes ci_github=yes ci_gitlab=yes \
-                  init_git=no -o "$ALL_ROOT"
-                test -f "$ALL_ROOT/ci-all-project/.sourcecraft/ci.yaml"
-                test -f "$ALL_ROOT/ci-all-project/.github/workflows/ci.yml"
-                test -f "$ALL_ROOT/ci-all-project/.gitlab-ci.yml"
-
-                # 3b. Verify ci_* hook behavior with all three flags OFF
-                NONE_ROOT="$(mktemp -d)"
-                cookiecutter --no-input "$TEMPLATE_DIR" \
-                  project_name="CI None Project" \
-                  python_version=3.12 python_min_version=3.12 \
-                  ci_sourcecraft=no ci_github=no ci_gitlab=no \
-                  init_git=no -o "$NONE_ROOT"
-                test ! -e "$NONE_ROOT/ci-none-project/.sourcecraft"
-                test ! -e "$NONE_ROOT/ci-none-project/.github"
-                test ! -e "$NONE_ROOT/ci-none-project/.gitlab-ci.yml"
 
                 # 4. Install dev tools so we can run scripts/new_package.py
                 poetry install --with dev --no-root
@@ -81,14 +93,51 @@ workflows:
                     || { echo "MISSING $pkg in pyproject.toml packages"; exit 1; }
                 done
 
-                # 7. Full install (project + all 4 packages + docs deps)
-                poetry install --with dev,docs
+                # 7. Commit scaffolding changes and push to the temporary repository.
+                #    The generated repo's own CI (.sourcecraft/ci.yaml) will handle
+                #    pytest, ruff, mkdocs, and tox validation on push.
+                git add -v -A
+                git commit -v -m "Scaffold additional packages" || true
+                git branch -M main
+                git remote add origin "$REPO_URL"
+                git -c credential.helper='!f() { echo "username=$SOURCECRAFT_USERNAME"; echo "password=$SOURCECRAFT_API_TOKEN"; }; f' push -v -u origin main
 
-                # 8. Validation gauntlet
-                poetry run pytest
-                poetry run ruff check src tests
-                poetry run ruff format --check src tests
-                poetry run mkdocs build --strict
+          - name: wait-for-ci
+            image: cr.yandex/mirror/library/python:3.12-slim
+            env:
+              SOURCECRAFT_ORG_SLUG: lexxi-0
+              SOURCECRAFT_API_TOKEN: ${{ secrets.ci }}
+            script:
+              - |
+                set -eux
 
-                # 9. Run the generated project's own tox matrix (collapsed to py312, lint, docs)
-                poetry run tox
+                REPO_SLUG="$(cat .ci_repo_slug)"
+
+                # Wait for the CI workflow in the generated repo to complete.
+                # The --run-slug is omitted so the script auto-discovers the latest run
+                # triggered by the push above.
+                python scripts/sourcecraft_repo.py cicd-wait \
+                  --org-slug "$SOURCECRAFT_ORG_SLUG" \
+                  --repo-slug "$REPO_SLUG" \
+                  --polling-interval 15 \
+                  --max-attempts 120
+
+          - name: delete-repo
+            image: cr.yandex/mirror/library/python:3.12-slim
+            env:
+              SOURCECRAFT_ORG_SLUG: lexxi-0
+              SOURCECRAFT_API_TOKEN: ${{ secrets.ci }}
+            script:
+              - |
+                set -eux
+
+                # Best-effort cleanup: always run, even if earlier steps failed.
+                if [ -f .ci_repo_slug ]; then
+                  REPO_SLUG="$(cat .ci_repo_slug)"
+                  python scripts/sourcecraft_repo.py delete \
+                    --org-slug "$SOURCECRAFT_ORG_SLUG" \
+                    --repo-slug "$REPO_SLUG" \
+                    || echo "warn: failed to delete '$REPO_SLUG' (may already be gone)"
+                else
+                  echo "info: no .ci_repo_slug file found, nothing to delete"
+                fi
