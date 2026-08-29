@@ -136,7 +136,6 @@ workflows:
               paths:
                 - ./allure-report
 
-
           - name: delete-repo
             image: cr.yandex/mirror/library/python:3.12-slim
             env:
