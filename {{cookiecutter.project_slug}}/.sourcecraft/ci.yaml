@@ -30,10 +30,10 @@ workflows:
               - |
                 set -eux
                 # Allure 3 CLI is a Node app distributed via npm; run it through npx
-                # so no global install is needed. --single-file produces one
-                # self-contained index.html embedding the whole report, which is
-                # convenient to store as a single cube artifact.
-                npx --yes allure@3 generate allure-results -o allure-report --clean --single-file
+                # so no global install is needed. The `awesome` subcommand with
+                # --single-file emits one self-contained index.html embedding the
+                # whole report, which is convenient to store as a single artifact.
+                npx --yes allure@3 awesome allure-results --single-file --output allure-report
             artifacts:
               paths:
                 - ./allure-report/index.html
