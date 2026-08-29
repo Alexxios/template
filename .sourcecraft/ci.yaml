@@ -141,6 +141,7 @@ workflows:
 
           - name: delete-repo
             image: cr.yandex/mirror/library/python:3.12-slim
+            if: always()
             env:
               SOURCECRAFT_ORG_SLUG: lexxi-0
               SOURCECRAFT_API_TOKEN: ${{ secrets.ci }}
