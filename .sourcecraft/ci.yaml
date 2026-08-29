@@ -107,8 +107,6 @@ workflows:
             env:
               SOURCECRAFT_ORG_SLUG: lexxi-0
               SOURCECRAFT_API_TOKEN: ${{ secrets.ci }}
-            artifacts:
-              - allure-report
             script:
               - |
                 set -eux
@@ -134,6 +132,10 @@ workflows:
                   --task-slug test \
                   --cube-slug pytest \
                   --output-dir allure-report
+            artifacts:
+              paths:
+                - ./allure-report
+
 
           - name: delete-repo
             image: cr.yandex/mirror/library/python:3.12-slim

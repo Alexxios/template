@@ -14,8 +14,6 @@ workflows:
         cubes:
           - name: pytest
             image: cr.yandex/mirror/library/python:{{cookiecutter.python_version}}-slim
-            artifacts:
-              - allure-report
             script:
               - |
                 set -eux
@@ -30,6 +28,9 @@ workflows:
                 wget -qO /tmp/allure.tgz https://github.com/allure-framework/allure2/releases/download/2.29.0/allure-2.29.0.tgz
                 tar -xzf /tmp/allure.tgz -C /opt
                 /opt/allure-2.29.0/bin/allure generate allure-results -o allure-report --clean
+            artifacts:
+              paths:
+                - ./allure-report
 
       - name: lint
         cubes:
