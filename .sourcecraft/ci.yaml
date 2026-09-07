@@ -122,8 +122,26 @@ workflows:
                   --polling-interval 15 \
                   --max-attempts 120
 
+                # Pull the single-file Allure report artifact produced by the
+                # inner CI's allure cube (workflow=ci, task=test, cube=allure)
+                # and store it locally so it becomes an artifact of this cube.
+                # The artifact's local_path (./allure-report/index.html) is
+                # reconstructed under --output-dir, so we use "." to land at
+                # ./allure-report/index.html.
+                python scripts/sourcecraft_repo.py cicd-artifacts \
+                  --org-slug "$SOURCECRAFT_ORG_SLUG" \
+                  --repo-slug "$REPO_SLUG" \
+                  --workflow-slug ci \
+                  --task-slug test \
+                  --cube-slug allure \
+                  --output-dir .
+            artifacts:
+              paths:
+                - ./allure-report/index.html
+
           - name: delete-repo
             image: cr.yandex/mirror/library/python:3.12-slim
+            if: always()
             env:
               SOURCECRAFT_ORG_SLUG: lexxi-0
               SOURCECRAFT_API_TOKEN: ${{ secrets.ci }}

@@ -185,6 +185,44 @@ def cmd_delete(args: argparse.Namespace) -> None:
     logger.info("deleted repository %s from org %s", args.repo_slug, args.org_slug)
 
 
+def _discover_latest_run(token: str, org_slug: str, repo_slug: str) -> str:
+    """Discover the slug of the latest CI/CD run via the ListRuns API."""
+    list_url = f"{API_BASE}/repos/{org_slug}/{repo_slug}/cicd/runs"
+    logger.info("discovering latest run via %s", list_url)
+    _, list_body = _request("GET", list_url, token, accept=200)
+    assert isinstance(list_body, dict)
+    runs = list_body.get("runs", [])
+    if not runs:
+        logger.error("no CI runs found for %s/%s", org_slug, repo_slug)
+        sys.exit(1)
+    # The API returns runs sorted by creation time (newest first).
+    run_slug = runs[0]["slug"]
+    logger.info("discovered latest run: slug=%s", run_slug)
+    return run_slug
+
+
+def _download(url: str, dest: str, token: str | None = None) -> None:
+    """Download a binary blob from ``url`` to a local file ``dest``."""
+    logger.info("downloading %s -> %s", url, dest)
+    req = urllib.request.Request(url, method="GET")
+    if token:
+        req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req) as resp, open(dest, "wb") as fh:
+            while True:
+                chunk = resp.read(64 * 1024)
+                if not chunk:
+                    break
+                fh.write(chunk)
+    except urllib.error.HTTPError as exc:
+        logger.error("HTTP %d downloading %s", exc.code, url)
+        sys.exit(1)
+    except urllib.error.URLError as exc:
+        logger.error("network failure downloading %s: %s", url, exc.reason)
+        sys.exit(1)
+    logger.info("downloaded %s", dest)
+
+
 def cmd_cicd_wait(args: argparse.Namespace) -> None:
     """Poll a CI/CD run until it reaches a terminal status.
 
@@ -199,17 +237,7 @@ def cmd_cicd_wait(args: argparse.Namespace) -> None:
     if args.run_slug:
         run_slug = args.run_slug
     else:
-        list_url = f"{API_BASE}/repos/{args.org_slug}/{args.repo_slug}/cicd/runs"
-        logger.info("discovering latest run via %s", list_url)
-        _, list_body = _request("GET", list_url, token, accept=200)
-        assert isinstance(list_body, dict)
-        runs = list_body.get("runs", [])
-        if not runs:
-            logger.error("no CI runs found for %s/%s", args.org_slug, args.repo_slug)
-            sys.exit(1)
-        # The API returns runs sorted by creation time (newest first).
-        run_slug = runs[0]["slug"]
-        logger.info("discovered latest run: slug=%s", run_slug)
+        run_slug = _discover_latest_run(token, args.org_slug, args.repo_slug)
 
     url = f"{API_BASE}/repos/{args.org_slug}/{args.repo_slug}/cicd/runs/{run_slug}"
 
@@ -244,6 +272,125 @@ def cmd_cicd_wait(args: argparse.Namespace) -> None:
 
         logger.debug("waiting %ds before next poll...", args.polling_interval)
         time.sleep(args.polling_interval)
+
+
+def cmd_cicd_artifacts(args: argparse.Namespace) -> None:
+    """Download artifacts produced by a cube in a CI/CD run.
+
+    Uses the GetCubeArtifacts API
+    (GET /repos/{org}/{repo}/cicd/artifacts/{run}/{workflow}/{task}/{cube})
+    to list artifacts, then downloads each one via its temporary ``download_url``
+    into the local ``--output-dir`` directory.
+
+    Artifacts are not necessarily ready the instant a run finishes: each
+    artifact has a ``status`` that transitions from ``registered`` to a
+    terminal value (``success``, ``failed`` or ``missing``). The
+    ``download_url`` is only populated once the artifact has been obtained by
+    the platform (it is a temporary URL valid for a short time after
+    acquisition). This command therefore polls the endpoint until every
+    artifact reaches a terminal status, then downloads the ones that
+    succeeded. It fails loudly if any artifact ends up ``failed``/``missing``
+    or if polling times out before all artifacts are ready.
+
+    If --run-slug is not provided, the latest run is discovered via the
+    ListRuns API (GET /repos/{org}/{repo}/cicd/runs).
+    """
+    token = _require_token()
+
+    # Resolve run slug: use explicit value or discover the latest run.
+    run_slug: str
+    if args.run_slug:
+        run_slug = args.run_slug
+    else:
+        run_slug = _discover_latest_run(token, args.org_slug, args.repo_slug)
+
+    url = (
+        f"{API_BASE}/repos/{args.org_slug}/{args.repo_slug}/cicd/artifacts/"
+        f"{run_slug}/{args.workflow_slug}/{args.task_slug}/{args.cube_slug}"
+    )
+    logger.info(
+        "fetching artifacts for run=%s workflow=%s task=%s cube=%s",
+        run_slug, args.workflow_slug, args.task_slug, args.cube_slug,
+    )
+
+    # Artifact statuses: "registered" (pending) -> "success" | "failed" | "missing".
+    terminal_statuses = {"success", "failed", "missing"}
+
+    artifacts: list[dict[str, Any]] = []
+    for attempt in range(1, args.max_attempts + 1):
+        _, body = _request("GET", url, token, accept=200)
+        assert isinstance(body, dict)
+        artifacts = body.get("artifacts", [])
+        if not artifacts:
+            logger.warning("no artifacts found for cube %s in run %s", args.cube_slug, run_slug)
+            return
+
+        pending = [a for a in artifacts if a.get("status", "registered") not in terminal_statuses]
+        logger.debug(
+            "poll #%d: %d artifact(s), %d still pending",
+            attempt, len(artifacts), len(pending),
+        )
+        if not pending:
+            break
+
+        if attempt == args.max_attempts:
+            pending_paths = ", ".join(a.get("local_path", a.get("id", "?")) for a in pending)
+            logger.error(
+                "artifacts not ready after %d attempts (still pending: %s)",
+                args.max_attempts, pending_paths,
+            )
+            sys.exit(1)
+
+        logger.debug("waiting %ds before next poll...", args.polling_interval)
+        time.sleep(args.polling_interval)
+    else:
+        # Loop exhausted without break: should not happen, but guard anyway.
+        logger.error("exceeded max attempts (%d) waiting for artifacts", args.max_attempts)
+        sys.exit(1)
+
+    os.makedirs(args.output_dir, exist_ok=True)
+    logger.info("found %d artifact(s)", len(artifacts))
+
+    failed: list[str] = []
+    downloaded = 0
+    for art in artifacts:
+        local_path = art.get("local_path", "")
+        status = art.get("status", "registered")
+        download_url = art.get("download_url", "")
+
+        if status != "success":
+            # Terminal but not downloadable: record and fail afterwards so the
+            # user sees every broken artifact in a single run.
+            failed.append(local_path or art.get("id", "<unknown>"))
+            logger.error("artifact %r has terminal status %r", local_path, status)
+            continue
+
+        if not download_url:
+            # Defensive: status=success must carry a download_url. If it does
+            # not, the API contract was violated — fail loudly instead of
+            # silently skipping.
+            failed.append(local_path or art.get("id", "<unknown>"))
+            logger.error("artifact %r has status=success but no download_url", local_path)
+            continue
+
+        # Preserve the artifact's declared local_path under the output dir so
+        # that directory trees (e.g. a served Allure report) are reconstructed
+        # faithfully. Fall back to the artifact id when local_path is empty.
+        rel = local_path or art.get("id", "artifact")
+        dest = os.path.join(args.output_dir, rel)
+        os.makedirs(os.path.dirname(dest) or args.output_dir, exist_ok=True)
+        _download(download_url, dest, token=token)
+        downloaded += 1
+
+    if failed:
+        logger.error("failed to obtain %d artifact(s): %s", len(failed), ", ".join(failed))
+        sys.exit(1)
+
+    if downloaded == 0:
+        logger.warning("no artifacts were downloaded for cube %s in run %s", args.cube_slug, run_slug)
+
+    logger.info("artifacts downloaded to %s", args.output_dir)
+    print(f"::set-output name=artifacts_dir::{args.output_dir}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -310,6 +457,45 @@ def build_parser() -> argparse.ArgumentParser:
         help="Maximum number of polls before giving up (default: 120 = 30 min).",
     )
     p_wait.set_defaults(func=cmd_cicd_wait)
+
+    # --- cicd-artifacts ---
+    p_art = sub.add_parser(
+        "cicd-artifacts",
+        help="Download artifacts produced by a cube in a CI/CD run.",
+    )
+    p_art.add_argument("--org-slug", **common_org, required=True)
+    p_art.add_argument(
+        "--repo-slug", required=True, help="Slug of the repository."
+    )
+    p_art.add_argument(
+        "--run-slug", default=None,
+        help="Slug of the CI run (default: discover the latest run).",
+    )
+    p_art.add_argument(
+        "--workflow-slug", required=True,
+        help="Workflow name as defined in the CI config.",
+    )
+    p_art.add_argument(
+        "--task-slug", required=True,
+        help="Task name as defined in the CI config.",
+    )
+    p_art.add_argument(
+        "--cube-slug", required=True,
+        help="Cube name as defined in the CI config.",
+    )
+    p_art.add_argument(
+        "--output-dir", default="artifacts",
+        help="Local directory to download artifacts into (default: artifacts).",
+    )
+    p_art.add_argument(
+        "--polling-interval", type=int, default=15,
+        help="Seconds between polls while waiting for artifacts to become ready (default: 15).",
+    )
+    p_art.add_argument(
+        "--max-attempts", type=int, default=40,
+        help="Maximum number of polls before giving up (default: 40 = 10 min).",
+    )
+    p_art.set_defaults(func=cmd_cicd_artifacts)
 
     return parser
 

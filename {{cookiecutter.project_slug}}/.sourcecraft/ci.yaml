@@ -20,7 +20,23 @@ workflows:
                 python -m pip install --upgrade pip
                 pip install "poetry>=1.8"
                 poetry install --with dev
+                # pytest writes raw Allure data into ./allure-results (see --alluredir in pyproject.toml).
+                # The results live in the workspace, so the next cube can pick them up.
                 poetry run pytest
+
+          - name: allure
+            image: docker.io/library/node
+            script:
+              - |
+                set -eux
+                # Allure 3 CLI is a Node app distributed via npm; run it through npx
+                # so no global install is needed. The `awesome` subcommand with
+                # --single-file emits one self-contained index.html embedding the
+                # whole report, which is convenient to store as a single artifact.
+                npx --yes allure@3 awesome allure-results --single-file --output allure-report
+            artifacts:
+              paths:
+                - ./allure-report/index.html
 
       - name: lint
         cubes:
