@@ -39,4 +39,3 @@ plugins:
       cover_title: {{cookiecutter.project_name}}
       author: {{cookiecutter.author_name}}
       output_path: "docs.pdf"
-      no_default_css: true

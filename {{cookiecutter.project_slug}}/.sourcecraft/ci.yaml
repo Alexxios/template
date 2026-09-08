@@ -71,7 +71,7 @@ workflows:
                 # by catching the plugin error and copying the PDF anyway.
                 poetry run mkdocs build || true
                 # Ensure the PDF exists (it's written before the plugin raises)
-                test -f docs.pdf || { echo "docs.pdf not found"; exit 1; }
+                test -f site/docs.pdf || { echo "docs.pdf not found"; exit 1; }
             artifacts:
               paths:
-                - ./docs.pdf
+                - ./site/docs.pdf
