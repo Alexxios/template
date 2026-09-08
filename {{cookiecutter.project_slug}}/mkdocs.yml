@@ -32,3 +32,7 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - toc:
       permalink: true
+
+plugins:
+  - search
+  - print-site
