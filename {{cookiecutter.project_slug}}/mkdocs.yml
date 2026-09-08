@@ -35,5 +35,7 @@ markdown_extensions:
 
 plugins:
   - search
-  - print-site:
-      add_to_navigation: false
+  - with-pdf:
+      cover_title: {{cookiecutter.project_name}}
+      author: {{cookiecutter.author_name}}
+      output_path: "docs.pdf"

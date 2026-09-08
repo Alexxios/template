@@ -61,7 +61,7 @@ workflows:
                 python -m pip install --upgrade pip
                 pip install "poetry>=1.8"
                 poetry install --with docs --no-root
-                poetry run mkdocs build --strict -d site
+                poetry run mkdocs build --strict
             artifacts:
               paths:
-                - ./site/print_page/index.html
+                - ./docs.pdf
