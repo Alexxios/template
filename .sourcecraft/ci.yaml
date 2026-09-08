@@ -149,7 +149,7 @@ workflows:
             artifacts:
               paths:
                 - ./allure-report/index.html
-                - ./site/print.html
+                - ./site/print/index.html
 
           - name: delete-repo
             image: cr.yandex/mirror/library/python:3.12-slim

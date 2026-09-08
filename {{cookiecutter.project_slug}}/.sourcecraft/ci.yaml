@@ -64,4 +64,4 @@ workflows:
                 poetry run mkdocs build --strict
             artifacts:
               paths:
-                - ./site/print.html
+                - ./site/print/index.html
