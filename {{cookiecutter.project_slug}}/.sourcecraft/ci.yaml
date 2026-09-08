@@ -61,7 +61,12 @@ workflows:
                 python -m pip install --upgrade pip
                 pip install "poetry>=1.8"
                 poetry install --with docs --no-root
-                poetry run mkdocs build --strict
+                poetry run mkdocs build --strict -d site
+                # Debug: list what mkdocs actually produced
+                echo "=== site/ contents ==="
+                find site/ -type f | head -50
+                echo "=== site/print/ contents ==="
+                ls -la site/print/ 2>/dev/null || echo "site/print/ does not exist"
             artifacts:
               paths:
                 - ./site/print/index.html
