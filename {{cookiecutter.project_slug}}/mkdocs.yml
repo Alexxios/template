@@ -32,3 +32,10 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - toc:
       permalink: true
+
+plugins:
+  - search
+  - with-pdf:
+      cover_title: {{cookiecutter.project_name}}
+      author: {{cookiecutter.author_name}}
+      output_path: "docs.pdf"

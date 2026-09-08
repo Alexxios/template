@@ -135,9 +135,21 @@ workflows:
                   --task-slug test \
                   --cube-slug allure \
                   --output-dir .
+
+                # Pull the mkdocs print-site artifact produced by the
+                # inner CI's mkdocs cube (workflow=ci, task=docs, cube=mkdocs)
+                # and store it locally so it becomes an artifact of this cube.
+                python scripts/sourcecraft_repo.py cicd-artifacts \
+                  --org-slug "$SOURCECRAFT_ORG_SLUG" \
+                  --repo-slug "$REPO_SLUG" \
+                  --workflow-slug ci \
+                  --task-slug docs \
+                  --cube-slug mkdocs \
+                  --output-dir .
             artifacts:
               paths:
                 - ./allure-report/index.html
+                - ./site/docs.pdf
 
           - name: delete-repo
             image: cr.yandex/mirror/library/python:3.12-slim
