@@ -58,10 +58,10 @@ workflows:
             script:
               - |
                 set -eux
-                # WeasyPrint (used by mkdocs-with-pdf) requires system libraries
+                # WeasyPrint requires Pango and related system libraries
                 apt-get update && apt-get install -y --no-install-recommends \
-                  libglib2.0-0 libpango-1.0-0 libpangocairo-1.0-0 \
-                  libgdk-pixbuf2.0-0 libffi6 libcairo2 \
+                  libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 \
+                  libffi-dev libcairo2 libglib2.0-0 fonts-dejavu-core \
                 && rm -rf /var/lib/apt/lists/*
                 python -m pip install --upgrade pip
                 pip install "poetry>=1.8"
