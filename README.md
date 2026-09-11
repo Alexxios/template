@@ -2,7 +2,7 @@
 
 A [Cookiecutter](https://www.cookiecutter.io/) template for modern Python projects, pre-wired with:
 
-- **Poetry** for dependency management and packaging
+- **uv** for dependency management and packaging
 - **Ruff** for both formatting and linting (replaces black/isort/flake8)
 - **pytest** + **coverage.py** (via `pytest-cov`) for tests
 - **tox** for multi-Python-version test matrix
@@ -40,7 +40,7 @@ You will be prompted for:
 | `author_email`       | Author email for `pyproject.toml`                                    |
 | `version`            | Initial version                                                      |
 | `python_version`     | Primary Python version used for dev                                  |
-| `python_min_version` | Lower bound; floor of the tox matrix and Poetry `python` constraint  |
+| `python_min_version` | Lower bound; floor of the tox matrix and `requires-python` constraint |
 | `license`            | One of MIT, Apache-2.0, BSD-3-Clause, Proprietary                    |
 | `init_git`           | If `yes`, run `git init` and create an initial commit                |
 | `ci_sourcecraft`     | If `yes`, generate `.sourcecraft/ci.yaml` with test/lint/docs flows  |
@@ -51,11 +51,11 @@ You will be prompted for:
 
 ```bash
 cd <project_slug>
-poetry install --with dev,docs
-poetry run pre-commit install
-poetry run pytest
-poetry run tox
-poetry run mkdocs serve
+uv sync --extra dev --extra docs
+uv run pre-commit install
+uv run pytest
+uv run tox
+uv run mkdocs serve
 ```
 
 ## What's not included

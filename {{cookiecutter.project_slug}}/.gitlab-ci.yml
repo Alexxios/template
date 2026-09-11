@@ -1,8 +1,7 @@
 default:
   image: python:{{cookiecutter.python_version}}-slim
   before_script:
-    - python -m pip install --upgrade pip
-    - pip install "poetry>=1.8"
+    - pip install --upgrade pip uv
 
 stages:
   - check
@@ -10,18 +9,18 @@ stages:
 test:
   stage: check
   script:
-    - poetry install --with dev
-    - poetry run pytest
+    - uv sync --extra dev
+    - uv run pytest
 
 lint:
   stage: check
   script:
-    - poetry install --with dev --no-root
-    - poetry run ruff check src tests
-    - poetry run ruff format --check src tests
+    - uv sync --extra dev --no-install-project
+    - uv run ruff check src tests
+    - uv run ruff format --check src tests
 
 docs:
   stage: check
   script:
-    - poetry install --with docs --no-root
-    - poetry run mkdocs build --strict
+    - uv sync --extra docs --no-install-project
+    - uv run mkdocs build --strict

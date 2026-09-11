@@ -3,24 +3,24 @@
 ## Installation
 
 ```bash
-poetry install
+uv sync
 ```
 
 ## Development workflow
 
 ```bash
-# install all groups
-poetry install --with dev,docs
+# install all extras
+uv sync --extra dev --extra docs
 
 # enable pre-commit
-poetry run pre-commit install
+uv run pre-commit install
 
 # run tests with coverage
-poetry run pytest
+uv run pytest
 
 # run the full matrix
-poetry run tox
+uv run tox
 
 # serve docs locally
-poetry run mkdocs serve
+uv run mkdocs serve
 ```
