@@ -13,7 +13,7 @@ workflows:
       - name: test
         cubes:
           - name: pytest
-            image: cr.yandex/mirror/library/python:{{cookiecutter.python_version}}-slim
+            image: docker.io/library/python:{{cookiecutter.python_version}}-slim
             script:
               - |
                 set -eux
@@ -54,7 +54,7 @@ workflows:
       - name: docs
         cubes:
           - name: mkdocs
-            image: cr.yandex/mirror/library/python:{{cookiecutter.python_version}}-slim
+            image: docker.io/library/python:{{cookiecutter.python_version}}
             script:
               - |
                 set -eux
