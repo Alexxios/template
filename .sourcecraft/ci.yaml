@@ -1,6 +1,8 @@
 on:
   push:
     - workflows: [test-template-generation]
+      filter:
+        branches: ["main", "master"]
   pull_request:
     - workflows: [test-template-generation]
 
