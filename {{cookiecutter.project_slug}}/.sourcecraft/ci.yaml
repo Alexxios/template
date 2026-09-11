@@ -17,12 +17,12 @@ workflows:
             script:
               - |
                 set -eux
-                python -m pip install --upgrade pip
-                pip install "poetry>=1.8"
-                poetry install --with dev
+                pip install --upgrade pip
+                pip install uv
+                uv sync --extra dev
                 # pytest writes raw Allure data into ./allure-results (see --alluredir in pyproject.toml).
                 # The results live in the workspace, so the next cube can pick them up.
-                poetry run pytest
+                uv run pytest
 
           - name: allure
             image: docker.io/library/node
@@ -45,11 +45,11 @@ workflows:
             script:
               - |
                 set -eux
-                python -m pip install --upgrade pip
-                pip install "poetry>=1.8"
-                poetry install --with dev --no-root
-                poetry run ruff check src tests
-                poetry run ruff format --check src tests
+                pip install --upgrade pip
+                pip install uv
+                uv sync --extra dev --no-install-project
+                uv run ruff check src tests
+                uv run ruff format --check src tests
 
       - name: docs
         cubes:
@@ -63,13 +63,13 @@ workflows:
                   libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 \
                   libffi-dev libcairo2 libglib2.0-0 fonts-dejavu-core \
                 && rm -rf /var/lib/apt/lists/*
-                python -m pip install --upgrade pip
-                pip install "poetry>=1.8"
-                poetry install --with docs --no-root
+                pip install --upgrade pip
+                pip install uv
+                uv sync --extra docs --no-install-project
                 # mkdocs-with-pdf may raise on warnings; the PDF is still written
                 # to site/docs.pdf. Use --strict only for the HTML build phase
                 # by catching the plugin error and copying the PDF anyway.
-                poetry run mkdocs build || true
+                uv run mkdocs build || true
                 # Ensure the PDF exists (it's written before the plugin raises)
                 test -f site/docs.pdf || { echo "docs.pdf not found"; exit 1; }
             artifacts:
