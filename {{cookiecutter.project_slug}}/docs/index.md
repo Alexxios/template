@@ -5,8 +5,8 @@
 ## Quick start
 
 ```bash
-poetry install --with dev,docs
-poetry run pytest
+uv sync --extra dev --extra docs
+uv run pytest
 ```
 
 See [Usage](usage.md) for more.

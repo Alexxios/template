@@ -50,7 +50,7 @@ workflows:
                 # 1. Tooling
                 apt-get update && apt-get install -y --no-install-recommends git
                 python -m pip install --upgrade pip
-                pip install "poetry>=1.8" "cookiecutter>=2.6"
+                pip install uv "cookiecutter>=2.6"
 
                 # Configure git globally so cookiecutter's init_git hook can commit.
                 git config --global user.name "CI Bot"
@@ -78,21 +78,21 @@ workflows:
                 test ! -e .gitlab-ci.yml
 
                 # 4. Install dev tools so we can run scripts/new_package.py
-                poetry install --with dev --no-root
+                uv sync --extra dev --no-install-project
 
                 # 5. Scaffold 3 additional packages via the in-project helper
-                poetry run python scripts/new_package.py --no-input package_name=pkg_alpha
-                poetry run python scripts/new_package.py --no-input package_name=pkg_beta
-                poetry run python scripts/new_package.py --no-input package_name=pkg_gamma
+                uv run python scripts/new_package.py --no-input package_name=pkg_alpha
+                uv run python scripts/new_package.py --no-input package_name=pkg_beta
+                uv run python scripts/new_package.py --no-input package_name=pkg_gamma
 
-                # 6. Validate filesystem + pyproject registration for the baseline package and all 3 new ones
+                # 6. Validate filesystem for the baseline package and all 3 new ones.
+                #    With setuptools auto-discovery (packages.find), no pyproject.toml
+                #    registration is needed — packages are found under src/ automatically.
                 for pkg in ci_test_project pkg_alpha pkg_beta pkg_gamma; do
                   test -f "src/$pkg/__init__.py"     || { echo "MISSING src/$pkg/__init__.py";     exit 1; }
                   test -f "src/$pkg/py.typed"        || { echo "MISSING src/$pkg/py.typed";        exit 1; }
                   test -f "tests/$pkg/test_smoke.py" || { echo "MISSING tests/$pkg/test_smoke.py"; exit 1; }
                   test ! -e "tests/$pkg/__init__.py" || { echo "UNEXPECTED tests/$pkg/__init__.py present (breaks src-layout import resolution)"; exit 1; }
-                  grep -qE "include\s*=\s*\"$pkg\"" pyproject.toml \
-                    || { echo "MISSING $pkg in pyproject.toml packages"; exit 1; }
                 done
 
                 # 7. Commit scaffolding changes and push to the temporary repository.
@@ -141,6 +141,9 @@ workflows:
                 # Pull the mkdocs print-site artifact produced by the
                 # inner CI's mkdocs cube (workflow=ci, task=docs, cube=mkdocs)
                 # and store it locally so it becomes an artifact of this cube.
+                # The artifact's local_path (./site/docs.pdf) is
+                # reconstructed under --output-dir, so we use "." to land at
+                # ./site/docs.pdf.
                 python scripts/sourcecraft_repo.py cicd-artifacts \
                   --org-slug "$SOURCECRAFT_ORG_SLUG" \
                   --repo-slug "$REPO_SLUG" \
