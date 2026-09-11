@@ -1,6 +1,8 @@
 on:
   push:
     - workflows: [test-template-generation]
+      filter:
+        branches: ["main", "master"]
   pull_request:
     - workflows: [test-template-generation]
 
@@ -11,7 +13,7 @@ workflows:
       - name: generate-and-validate
         cubes:
           - name: create-repo
-            image: cr.yandex/mirror/library/python:3.12-slim
+            image: docker.io/library/python:3.14-slim
             env:
               SOURCECRAFT_ORG_SLUG: lexxi-0
               SOURCECRAFT_API_TOKEN: ${{ secrets.ci }}
@@ -33,7 +35,7 @@ workflows:
                 echo "$REPO_SLUG" > .ci_repo_slug
 
           - name: scaffold-and-push
-            image: cr.yandex/mirror/library/python:3.12-slim
+            image: docker.io/library/python:3.14-slim
             env:
               SOURCECRAFT_ORG_SLUG: lexxi-0
               SOURCECRAFT_API_TOKEN: ${{ secrets.ci }}
@@ -60,8 +62,8 @@ workflows:
                 GEN_ROOT="$(mktemp -d)"
                 cookiecutter --no-input "$TEMPLATE_DIR" \
                   project_name="CI Test Project" \
-                  python_version=3.12 \
-                  python_min_version=3.12 \
+                  python_version=3.14 \
+                  python_min_version=3.14 \
                   init_git=yes \
                   -o "$GEN_ROOT"
                 cd "$GEN_ROOT/ci-test-project"
@@ -70,7 +72,7 @@ workflows:
                 test -f pyproject.toml
                 test -d src/ci_test_project
                 test -d tests/ci_test_project
-                grep -qE 'envlist\s*=\s*py312' tox.ini
+                grep -qE 'envlist\s*=\s*py314' tox.ini
                 test -f .sourcecraft/ci.yaml
                 test ! -e .github
                 test ! -e .gitlab-ci.yml
@@ -103,7 +105,7 @@ workflows:
                 git -c credential.helper='!f() { echo "username=$SOURCECRAFT_USERNAME"; echo "password=$SOURCECRAFT_API_TOKEN"; }; f' push -v -u origin main
 
           - name: wait-for-ci
-            image: cr.yandex/mirror/library/python:3.12-slim
+            image: docker.io/library/python:3.14-slim
             env:
               SOURCECRAFT_ORG_SLUG: lexxi-0
               SOURCECRAFT_API_TOKEN: ${{ secrets.ci }}
@@ -152,7 +154,7 @@ workflows:
                 - ./site/docs.pdf
 
           - name: delete-repo
-            image: cr.yandex/mirror/library/python:3.12-slim
+            image: docker.io/library/python:3.14-slim
             if: always()
             env:
               SOURCECRAFT_ORG_SLUG: lexxi-0
