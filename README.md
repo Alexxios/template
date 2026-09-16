@@ -3,6 +3,10 @@
 A [Cookiecutter](https://www.cookiecutter.io/) template for modern Python projects, pre-wired with:
 
 - **uv** for dependency management and packaging
+- **mashumaro** + **orjson** for serialization
+- **structlog** for structured logging
+- **dishka** for dependency injection
+- **memray** for memory profiling (in the `dev` extra on Linux/macOS)
 - **Ruff** for both formatting and linting (replaces black/isort/flake8)
 - **pytest** + **coverage.py** (via `pytest-cov`) for tests
 - **tox** for multi-Python-version test matrix
