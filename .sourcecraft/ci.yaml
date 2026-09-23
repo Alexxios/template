@@ -124,6 +124,19 @@ workflows:
                   --polling-interval 15 \
                   --max-attempts 120
 
+          - name: fetch-artifacts
+            needs: [wait-for-ci]
+            if: cubes.wait-for-ci.status == "success"
+            image: docker.io/library/python:3.14-slim
+            env:
+              SOURCECRAFT_ORG_SLUG: lexxi-0
+              SOURCECRAFT_API_TOKEN: ${{ secrets.ci }}
+            script:
+              - |
+                set -eux
+
+                REPO_SLUG="$(cat .ci_repo_slug)"
+
                 # Pull the single-file Allure report artifact produced by the
                 # inner CI's allure cube (workflow=ci, task=test, cube=allure)
                 # and store it locally so it becomes an artifact of this cube.
@@ -136,7 +149,8 @@ workflows:
                   --workflow-slug ci \
                   --task-slug test \
                   --cube-slug allure \
-                  --output-dir .
+                  --output-dir . &
+                ALLURE_PID=$!
 
                 # Pull the mkdocs print-site artifact produced by the
                 # inner CI's mkdocs cube (workflow=ci, task=docs, cube=mkdocs)
@@ -150,13 +164,21 @@ workflows:
                   --workflow-slug ci \
                   --task-slug docs \
                   --cube-slug mkdocs \
-                  --output-dir .
+                  --output-dir . &
+                DOCS_PID=$!
+
+                # Wait for both downloads, even if one fails under set -e.
+                FETCH_STATUS=0
+                wait "$ALLURE_PID" || { echo "error: Allure artifact fetch failed"; FETCH_STATUS=1; }
+                wait "$DOCS_PID" || { echo "error: docs artifact fetch failed"; FETCH_STATUS=1; }
+                exit "$FETCH_STATUS"
             artifacts:
               paths:
                 - ./allure-report/index.html
                 - ./site/docs.pdf
 
           - name: delete-repo
+            needs: [wait-for-ci, fetch-artifacts]
             image: docker.io/library/python:3.14-slim
             if: always()
             env:
