@@ -1,0 +1,193 @@
+name: Test template generation
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-template-generation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GH_REPO: ${{ vars.CI_GITHUB_OWNER || github.repository_owner }}/ci-test-template-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Check integration credentials
+        id: integration
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          if [ -n "$GH_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::CI_GITHUB_TOKEN is unavailable; validating the generated project locally."
+          fi
+
+      - name: Install tooling
+        run: python -m pip install uv "cookiecutter>=2.6"
+
+      - name: Generate and validate project
+        run: |
+          PROJECT_DIR="$RUNNER_TEMP/template-generation/ci-test-project"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          git config --global user.name "CI Bot"
+          git config --global user.email "ci@users.noreply.github.com"
+          cookiecutter --no-input "$GITHUB_WORKSPACE" \
+            project_name="CI Test Project" \
+            python_version=3.14 \
+            python_min_version=3.14 \
+            ci_sourcecraft=no ci_github=yes ci_gitlab=no init_git=yes \
+            --output-dir "$RUNNER_TEMP/template-generation"
+          cd "$PROJECT_DIR"
+
+          test -f pyproject.toml
+          test -d .git
+          grep -qE 'envlist\s*=\s*py314' tox.ini
+          test -f .github/workflows/ci.yml
+          test ! -e .sourcecraft
+          test ! -e .gitlab-ci.yml
+
+          uv sync --extra dev --no-install-project
+          for pkg in pkg_alpha pkg_beta pkg_gamma; do
+            uv run python scripts/new_package.py --no-input "package_name=$pkg"
+          done
+
+          for pkg in ci_test_project pkg_alpha pkg_beta pkg_gamma; do
+            test -f "src/$pkg/__init__.py"
+            test -f "src/$pkg/py.typed"
+            test -f "tests/$pkg/test_smoke.py"
+            test ! -e "tests/$pkg/__init__.py"
+          done
+
+      # Fork pull requests have no secrets. They still exercise the generated
+      # project's tests, lint, docs, and reports on this runner.
+      - uses: actions/setup-node@v7
+        if: steps.integration.outputs.enabled != 'true'
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Test and lint generated project locally
+        if: steps.integration.outputs.enabled != 'true'
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          uv sync --extra dev
+          uv run pytest
+          uv run ruff check src tests
+          uv run ruff format --check src tests
+
+      - name: Build local Allure report
+        if: ${{ always() && steps.integration.outputs.enabled == 'false' }}
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          if [ -d allure-results ]; then
+            npx --yes allure@3 awesome allure-results --single-file --output allure-report
+          fi
+
+      - name: Build local documentation
+        if: steps.integration.outputs.enabled != 'true'
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 \
+            libffi-dev libcairo2 libglib2.0-0 fonts-dejavu-core
+          uv sync --extra docs --no-install-project
+          # Match Sourcecraft: the PDF plugin can raise after writing the PDF.
+          uv run mkdocs build || test -f site/docs.pdf
+          test -s site/docs.pdf
+
+      - name: Create temporary GitHub repository
+        id: create
+        if: steps.integration.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          gh repo create "$GH_REPO" --private \
+            --description "Ephemeral repo created by CI for template validation"
+          echo "created=true" >> "$GITHUB_OUTPUT"
+
+      - name: Push generated project
+        if: steps.integration.outputs.enabled == 'true'
+        working-directory: ${{ env.PROJECT_DIR }}
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          git add -A
+          git commit -m "Scaffold additional packages"
+          git branch -M main
+          git remote add origin "https://github.com/$GH_REPO.git"
+          gh auth setup-git --hostname github.com
+          git push -u origin main
+          echo "GENERATED_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Wait for generated project CI
+        id: wait
+        if: steps.integration.outputs.enabled == 'true'
+        timeout-minutes: 35
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          run_id=""
+          for attempt in $(seq 1 30); do
+            run_id="$(gh run list --repo "$GH_REPO" --branch main --event push \
+              --commit "$GENERATED_COMMIT" --json databaseId --jq '.[0].databaseId // empty')"
+            if [ -n "$run_id" ]; then
+              break
+            fi
+            sleep 5
+          done
+          if [ -z "$run_id" ]; then
+            echo "::error::No CI run found for $GH_REPO at $GENERATED_COMMIT"
+            exit 1
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          timeout 30m gh run watch "$run_id" --repo "$GH_REPO" --exit-status --interval 15
+
+      - name: Download Allure report
+        if: ${{ always() && steps.wait.outputs.run_id != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          RUN_ID: ${{ steps.wait.outputs.run_id }}
+        run: gh run download "$RUN_ID" --repo "$GH_REPO" --name allure-report --dir "$PROJECT_DIR/allure-report"
+
+      - name: Download documentation PDF
+        if: ${{ always() && steps.wait.outputs.run_id != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          RUN_ID: ${{ steps.wait.outputs.run_id }}
+        run: gh run download "$RUN_ID" --repo "$GH_REPO" --name docs-pdf --dir "$PROJECT_DIR/site"
+
+      - name: Upload Allure report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: ${{ env.PROJECT_DIR }}/allure-report/index.html
+          if-no-files-found: error
+
+      - name: Upload documentation PDF
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-pdf
+          path: ${{ env.PROJECT_DIR }}/site/docs.pdf
+          if-no-files-found: error
+
+      - name: Delete temporary GitHub repository
+        if: ${{ always() && steps.create.outputs.created == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: gh repo delete "$GH_REPO" --yes

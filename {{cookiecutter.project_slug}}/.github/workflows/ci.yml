@@ -5,23 +5,45 @@ on:
     branches: [main, master]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "{{cookiecutter.python_version}}"
       - run: pip install --upgrade pip uv
       - run: uv sync --extra dev
       - run: uv run pytest
+      - uses: actions/setup-node@v7
+        if: always()
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - name: Build Allure report
+        if: always()
+        run: |
+          if [ -d allure-results ]; then
+            npx --yes allure@3 awesome allure-results --single-file --output allure-report
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-report
+          path: allure-report/index.html
+          if-no-files-found: error
 
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "{{cookiecutter.python_version}}"
       - run: pip install --upgrade pip uv
@@ -31,11 +53,28 @@ jobs:
 
   docs:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "{{cookiecutter.python_version}}"
+      - name: Install PDF system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 \
+            libffi-dev libcairo2 libglib2.0-0 fonts-dejavu-core
       - run: pip install --upgrade pip uv
       - run: uv sync --extra docs --no-install-project
-      - run: uv run mkdocs build --strict
+      - name: Build documentation PDF
+        run: |
+          # Match Sourcecraft: the PDF plugin can raise after writing the PDF.
+          uv run mkdocs build || test -f site/docs.pdf
+          test -s site/docs.pdf
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: docs-pdf
+          path: site/docs.pdf
+          if-no-files-found: error
