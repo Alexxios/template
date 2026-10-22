@@ -12,6 +12,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -32,11 +36,23 @@ jobs:
             npx --yes allure@3 awesome allure-results --single-file --output allure-report
           fi
       - uses: actions/upload-artifact@v4
+        id: allure_artifact
         if: always()
         with:
           name: allure-report
-          path: allure-report/index.html
+          path: allure-report/
           if-no-files-found: error
+      - name: Post Allure summary to pull request
+        if: >-
+          !cancelled() &&
+          steps.allure_artifact.outcome == 'success' &&
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          github.actor != 'dependabot[bot]'
+        uses: allure-framework/allure-action@v0
+        with:
+          report-directory: ./allure-report
+          github-token: {% raw %}${{ github.token }}{% endraw %}
 
   lint:
     runs-on: ubuntu-latest

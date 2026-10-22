@@ -99,6 +99,15 @@ with it do not trigger the generated project's CI.
 
 When the secret is unavailable (including fork pull requests), CI runs the
 generated project's pytest, Ruff, documentation, and report commands locally.
-Both modes publish `allure-report` (`index.html`) and `docs-pdf` (`docs.pdf`)
+Both modes publish `allure-report` (the full report directory, including
+`index.html` and JSON summaries) and `docs-pdf` (`docs.pdf`)
 artifacts. The generated GitHub workflow also publishes these reports and runs
 its test, lint, and docs jobs in parallel.
+
+Both workflows use the [official Allure action](https://allurereport.org/docs/integrations-github-action/)
+to post test summaries on pull requests from the same repository, including
+when tests fail. This uses the built-in `GITHUB_TOKEN`; the reporting jobs
+request `pull-requests: write` and `checks: write` permissions. Fork and
+Dependabot pull requests retain report artifacts without posting comments.
+The full report directory is preserved when transferring reports from temporary
+repositories so the action can read Allure's JSON summaries.
