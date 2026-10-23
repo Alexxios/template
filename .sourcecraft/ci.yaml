@@ -50,7 +50,7 @@ workflows:
                 # 1. Tooling
                 apt-get update && apt-get install -y --no-install-recommends git
                 python -m pip install --upgrade pip
-                pip install uv "cookiecutter>=2.6"
+                pip install -r requirements-ci.txt
 
                 # Configure git globally so cookiecutter's init_git hook can commit.
                 git config --global user.name "CI Bot"

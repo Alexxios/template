@@ -40,7 +40,7 @@ jobs:
           fi
 
       - name: Install tooling
-        run: python -m pip install uv "cookiecutter>=2.6"
+        run: python -m pip install -r requirements-ci.txt
 
       - name: Generate and validate project
         run: |
@@ -60,6 +60,7 @@ jobs:
           test -d .git
           grep -qE 'envlist\s*=\s*py314' tox.ini
           test -f .github/workflows/ci.yml
+          test -f .github/dependabot.yml
           test ! -e .sourcecraft
           test ! -e .gitlab-ci.yml
 

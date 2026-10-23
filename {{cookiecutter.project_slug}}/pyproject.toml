@@ -1,3 +1,4 @@
+{% from "dependencies/pyproject.toml" import project_tooling -%}
 [project]
 name = "{{cookiecutter.package_name}}"
 version = "{{cookiecutter.version}}"
@@ -8,29 +9,10 @@ readme = "README.md"
 requires-python = ">= {{cookiecutter.python_min_version}}"
 dependencies = []
 
-[project.optional-dependencies]
-dev = [
-    "ruff>=0.7.0",
-    "pytest>=8.3.0",
-    "pytest-cov>=5.0.0",
-    "coverage>=7.6.0",
-    "tox>=4.21.0",
-    "pre-commit>=4.0.0",
-    "cookiecutter>=2.6.0",
-    "allure-pytest>=2.13.0",
-]
-docs = [
-    "mkdocs>=1.6.0",
-    "mkdocs-material>=9.5.0",
-    "mkdocs-with-pdf>=0.9.0",
-]
+{{ project_tooling() }}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[build-system]
-requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.build_meta"
 
 [tool.ruff]
 line-length = 100
