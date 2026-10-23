@@ -36,6 +36,7 @@ You will be prompted for:
 | `project_slug`       | Directory name (auto from `project_name`, override if needed)        |
 | `package_name`       | Importable Python package name (auto from slug)                      |
 | `description`        | Short project description                                            |
+| `designation`        | Single choice: Web (default) or None; tech stacks will be added later |
 | `author_name`        | Author name for `pyproject.toml`                                     |
 | `author_email`       | Author email for `pyproject.toml`                                    |
 | `version`            | Initial version                                                      |
