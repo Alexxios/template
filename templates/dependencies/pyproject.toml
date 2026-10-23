@@ -1,8 +1,16 @@
-# Dependabot updates this plain uv manifest. Cookiecutter imports the macro below.
+# Dependabot updates this plain uv manifest. Cookiecutter imports the macros below.
 [project]
 name = "template-project-tooling"
 version = "0.1.0"
-dependencies = []
+
+# {% macro project_dependencies() %}
+dependencies = [
+    "mashumaro>=3.22",
+    "orjson>=3.12.0",
+    "structlog>=26.1.0",
+    "dishka>=1.10.1",
+]
+# End of shared runtime dependencies. {% endmacro %}
 
 # {% macro project_tooling() %}
 [project.optional-dependencies]
@@ -15,6 +23,7 @@ dev = [
     "pre-commit>=4.0.0",
     "cookiecutter>=2.6.0",
     "allure-pytest>=2.13.0",
+    "memray>=1.20.0; sys_platform == 'linux' or sys_platform == 'darwin'",
 ]
 docs = [
     "mkdocs>=1.6.0",

@@ -2,6 +2,12 @@
 
 {{cookiecutter.description}}
 
+## Included tools
+
+Runtime dependencies include **mashumaro** and **orjson** for serialization,
+**structlog** for structured logging, and **dishka** for dependency injection.
+The `dev` extra also includes **memray** for memory profiling on Linux/macOS.
+
 ## Development
 
 ```bash

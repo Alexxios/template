@@ -11,8 +11,10 @@ updates:
         patterns: ["*"]
 
   # Actions used by generated projects are maintained in the template, too.
+  # Use directories globs to match the brace-wrapped Cookiecutter folder.
   - package-ecosystem: github-actions
-    directory: /{{cookiecutter.project_slug}}/.github/workflows
+    directories:
+      - "/*cookiecutter.project_slug*/.github/workflows"
     schedule:
       interval: weekly
     groups:
@@ -29,7 +31,7 @@ updates:
       ci-tooling:
         patterns: ["*"]
 
-  # Shared versions used to render Python tooling into generated projects.
+  # Shared versions used to render Python dependencies into generated projects.
   - package-ecosystem: uv
     directory: /templates/dependencies
     schedule:
@@ -40,7 +42,8 @@ updates:
         patterns: ["*"]
 
   - package-ecosystem: pre-commit
-    directory: /{{cookiecutter.project_slug}}
+    directories:
+      - "/*cookiecutter.project_slug*"
     schedule:
       interval: weekly
     groups:
