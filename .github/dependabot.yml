@@ -31,7 +31,7 @@ updates:
       ci-tooling:
         patterns: ["*"]
 
-  # Shared versions used to render Python tooling into generated projects.
+  # Shared versions used to render Python dependencies into generated projects.
   - package-ecosystem: uv
     directory: /templates/dependencies
     schedule:

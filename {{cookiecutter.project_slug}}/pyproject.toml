@@ -1,4 +1,4 @@
-{% from "dependencies/pyproject.toml" import project_tooling -%}
+{% from "dependencies/pyproject.toml" import project_dependencies, project_tooling -%}
 [project]
 name = "{{cookiecutter.package_name}}"
 version = "{{cookiecutter.version}}"
@@ -7,12 +7,7 @@ authors = [{ name = "{{cookiecutter.author_name}}", email = "{{cookiecutter.auth
 license = { text = "{{cookiecutter.license}}" }
 readme = "README.md"
 requires-python = ">= {{cookiecutter.python_min_version}}"
-dependencies = [
-    "mashumaro>=3.22",
-    "orjson>=3.12.0",
-    "structlog>=26.1.0",
-    "dishka>=1.10.1",
-]
+{{ project_dependencies() }}
 
 {{ project_tooling() }}
 

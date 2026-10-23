@@ -130,7 +130,7 @@ been evicted. Sourcecraft and GitLab history persistence is unchanged.
 Dependabot checks weekly and opens grouped update pull requests on GitHub.
 The template repository's `.github/dependabot.yml` covers its own Actions and
 CI tools (`requirements-ci.txt`, using the uv ecosystem), plus the template's
-Actions, Python tooling (`templates/dependencies/pyproject.toml`, also using uv),
+Actions, Python dependencies (`templates/dependencies/pyproject.toml`, also using uv),
 and pre-commit hooks.
 
 Projects generated with `ci_github=yes` also include `.github/dependabot.yml`.
@@ -139,9 +139,9 @@ They receive weekly updates for GitHub Actions, Python dependencies through uv
 `versioning-strategy: increase` so lower bounds such as `ruff>=0.7.0` are updated
 even when the newest release already satisfies the existing range.
 
-The shared Python tooling manifest is valid TOML that Dependabot can update.
+The shared Python dependency manifest is valid TOML that Dependabot can update.
 Cookiecutter imports its dependency sections into each generated `pyproject.toml`.
-This updates the template's development, documentation, and build dependencies
+This updates the template's runtime, development, documentation, and build dependencies
 from the outer repository. Generated projects contain ordinary dependency lists
 and update them independently. Their `python_min_version` setting is rendered
 directly as before.
