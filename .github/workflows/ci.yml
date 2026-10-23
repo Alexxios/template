@@ -98,7 +98,8 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           if [ -d allure-results ]; then
-            npx --yes allure@3 awesome allure-results --single-file --output allure-report
+            npx --yes allure@3 awesome allure-results --single-file --output allure-report \
+              --history-path .allure/history.jsonl
           fi
 
       - name: Build local documentation
