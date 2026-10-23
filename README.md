@@ -112,6 +112,14 @@ Dependabot pull requests retain report artifacts without posting comments.
 The full report directory is preserved when transferring reports from temporary
 repositories so the action can read Allure's JSON summaries.
 
+Generated GitHub test jobs also retain
+[Allure 3 test history](https://allurereport.org/docs/how-it-works-history-files/#allure-report-3)
+in `.allure/history.jsonl`. Each branch or pull request restores its own history,
+falling back to the default branch, and saves updated history even when tests
+fail. The JSONL file is also uploaded as `allure-history`. This uses GitHub
+Actions caches without additional secrets; history restarts if the cache has
+been evicted. Sourcecraft and GitLab history persistence is unchanged.
+
 ## Dependency updates
 
 Dependabot checks weekly and opens grouped update pull requests on GitHub.

@@ -39,6 +39,31 @@ by setuptools under `src/`, so no manual `pyproject.toml` registration is needed
 Run `uv sync` afterwards to refresh the environment.
 
 {% if cookiecutter.ci_github == "yes" %}
+## Test history in GitHub CI
+
+The test job restores `.allure/history.jsonl` before running tests and appends
+the current results when building the Allure 3 report. It saves history even
+when tests fail and uploads it as the `allure-history` artifact alongside the
+`allure-report` artifact. No additional secrets are required.
+
+Each branch or pull request keeps its own history. A new history starts from
+the default branch's latest cached history when available. Pull request results
+do not update the default branch's history. Test jobs for the same ref run one
+at a time to avoid overwriting each other's updates.
+
+History persists through GitHub Actions caches, which GitHub may evict after
+seven days without access or when storage limits are reached. If no cache is
+available, the next report starts a new history. The `allure-history` artifact
+also provides a downloadable copy for each run that builds a report.
+
+To accumulate history locally with Node.js 24 or later installed:
+
+```bash
+uv run pytest
+npx --yes allure@3 awesome allure-results --single-file --output allure-report \
+  --history-path .allure/history.jsonl
+```
+
 ## Dependency updates
 
 Dependabot checks GitHub Actions, Python dependencies through uv, and pre-commit
