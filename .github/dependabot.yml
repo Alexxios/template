@@ -1,0 +1,48 @@
+version: 2
+
+updates:
+  # The template repository's own GitHub workflows.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  # Actions used by generated projects are maintained in the template, too.
+  - package-ecosystem: github-actions
+    directory: /{{cookiecutter.project_slug}}/.github/workflows
+    schedule:
+      interval: weekly
+    groups:
+      template-github-actions:
+        patterns: ["*"]
+
+  # Tools used to generate and validate projects in the outer CI.
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    versioning-strategy: increase
+    groups:
+      ci-tooling:
+        patterns: ["*"]
+
+  # Shared versions used to render Python tooling into generated projects.
+  - package-ecosystem: uv
+    directory: /templates/dependencies
+    schedule:
+      interval: weekly
+    versioning-strategy: increase
+    groups:
+      template-python:
+        patterns: ["*"]
+
+  - package-ecosystem: pre-commit
+    directory: /{{cookiecutter.project_slug}}
+    schedule:
+      interval: weekly
+    groups:
+      template-pre-commit:
+        patterns: ["*"]

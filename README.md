@@ -44,7 +44,7 @@ You will be prompted for:
 | `license`            | One of MIT, Apache-2.0, BSD-3-Clause, Proprietary                    |
 | `init_git`           | If `yes`, run `git init` and create an initial commit                |
 | `ci_sourcecraft`     | If `yes`, generate `.sourcecraft/ci.yaml` with test/lint/docs flows  |
-| `ci_github`          | If `yes`, generate `.github/workflows/ci.yml` with test/lint/docs    |
+| `ci_github`          | If `yes`, generate GitHub CI and Dependabot configuration           |
 | `ci_gitlab`          | If `yes`, generate `.gitlab-ci.yml` with test/lint/docs jobs         |
 
 ## After generation
@@ -111,3 +111,31 @@ request `pull-requests: write` and `checks: write` permissions. Fork and
 Dependabot pull requests retain report artifacts without posting comments.
 The full report directory is preserved when transferring reports from temporary
 repositories so the action can read Allure's JSON summaries.
+
+## Dependency updates
+
+Dependabot checks weekly and opens grouped update pull requests on GitHub.
+The template repository's `.github/dependabot.yml` covers its own Actions and
+CI tools (`requirements-ci.txt`, using the uv ecosystem), plus the template's
+Actions, Python tooling (`templates/dependencies/pyproject.toml`, also using uv),
+and pre-commit hooks.
+
+Projects generated with `ci_github=yes` also include `.github/dependabot.yml`.
+They receive weekly updates for GitHub Actions, Python dependencies through uv
+(including `uv.lock` when committed), and pre-commit hooks. Python updates use
+`versioning-strategy: increase` so lower bounds such as `ruff>=0.7.0` are updated
+even when the newest release already satisfies the existing range.
+
+The shared Python tooling manifest is valid TOML that Dependabot can update.
+Cookiecutter imports its dependency sections into each generated `pyproject.toml`.
+This updates the template's development, documentation, and build dependencies
+from the outer repository. Generated projects contain ordinary dependency lists
+and update them independently. Their `python_min_version` setting is rendered
+directly as before.
+
+GitHub-expression strings in workflow templates are quoted so Dependabot can
+parse the YAML before Cookiecutter renders it.
+
+Merge these configurations into each GitHub repository's default branch to
+activate updates. Merge dependency PRs on GitHub, then fetch those changes and
+push them to Sourcecraft when updating the primary repository.

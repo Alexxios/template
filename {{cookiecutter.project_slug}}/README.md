@@ -38,6 +38,18 @@ This creates `src/my_pkg/` and `tests/my_pkg/`. Packages are auto-discovered
 by setuptools under `src/`, so no manual `pyproject.toml` registration is needed.
 Run `uv sync` afterwards to refresh the environment.
 
+{% if cookiecutter.ci_github == "yes" %}
+## Dependency updates
+
+Dependabot checks GitHub Actions, Python dependencies through uv, and pre-commit
+hooks weekly and opens grouped update pull requests. Commit `uv.lock` after
+running `uv sync` so updates also maintain the resolved dependency versions.
+
+Keep `.github/dependabot.yml` on your GitHub repository's default branch to
+enable updates. Python dependency updates increase the minimum version in
+`pyproject.toml`, even when the new release already fits the existing range.
+{% endif %}
+
 ## License
 
 {{cookiecutter.license}}

@@ -1,0 +1,28 @@
+# Locally downloaded Sourcecraft reference documentation
+/docs/sourcecraft/
+
+# Python environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.tox/
+
+# Build and coverage artifacts
+build/
+dist/
+*.egg-info/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Generated reports
+allure-results/
+allure-report/
+site/
+
+# Local editor and operating-system files
+*.swp
+.DS_Store

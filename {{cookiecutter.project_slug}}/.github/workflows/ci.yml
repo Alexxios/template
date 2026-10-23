@@ -52,7 +52,7 @@ jobs:
         uses: allure-framework/allure-action@v0
         with:
           report-directory: ./allure-report
-          github-token: {% raw %}${{ github.token }}{% endraw %}
+          github-token: "{% raw %}${{ github.token }}{% endraw %}"
 
   lint:
     runs-on: ubuntu-latest
