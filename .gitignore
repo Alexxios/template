@@ -8,6 +8,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .tox/
+node_modules/
 
 # Build and coverage artifacts
 build/
@@ -21,7 +22,10 @@ htmlcov/
 # Generated reports
 allure-results/
 allure-report/
+reports/
+prof/
 site/
+generated/
 
 # Local editor and operating-system files
 *.swp

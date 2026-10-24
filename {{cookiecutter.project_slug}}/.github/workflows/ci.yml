@@ -3,130 +3,83 @@ name: CI
 on:
   push:
     branches: [main, master]
-  pull_request:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  queue: max
+  cancel-in-progress: false
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    # Serialize updates to this ref's history so concurrent runs cannot lose entries.
-    concurrency:
-      group: "{% raw %}allure-history-${{ github.workflow }}-${{ github.ref }}{% endraw %}"
-      queue: max
-      cancel-in-progress: false
-    permissions:
-      contents: read
-      pull-requests: write
-      checks: write
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: "{% raw %}${{ steps.deployment.outputs.page_url }}{% endraw %}"
     steps:
       - uses: actions/checkout@v7
-      - name: Restore Allure history
-        id: allure_history
-        uses: actions/cache/restore@v6
-        with:
-          path: .allure/history.jsonl
-          key: "{% raw %}allure-history-v1-${{ github.workflow }}-${{ github.job }}-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}{% endraw %}"
-          restore-keys: |
-            {% raw %}allure-history-v1-${{ github.workflow }}-${{ github.job }}-${{ github.ref }}-
-            allure-history-v1-${{ github.workflow }}-${{ github.job }}-refs/heads/${{ github.event.repository.default_branch }}-{% endraw %}
       - uses: actions/setup-python@v7
         with:
           python-version: "{{cookiecutter.python_version}}"
-      - run: pip install --upgrade pip uv
-      - run: uv sync --extra dev
-      - run: uv run pytest
       - uses: actions/setup-node@v7
-        if: always()
         with:
           node-version: "24"
           package-manager-cache: false
-      - name: Build Allure report
-        id: allure_report
-        if: always()
+      - name: Install dependencies
         run: |
-          if [ -d allure-results ]; then
-            npx --yes allure@3 awesome allure-results --single-file --output allure-report \
-              --history-path .allure/history.jsonl
-            echo "generated=true" >> "$GITHUB_OUTPUT"
-          fi
-      # The combined cache action only saves on success; retain failed tests too.
+          python -m pip install uv
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends graphviz
+          uv sync --extra dev
+      - name: Restore Allure history
+        id: history
+        uses: actions/cache/restore@v6
+        with:
+          path: reports/history.jsonl
+          key: "{% raw %}allure-history-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}{% endraw %}"
+          restore-keys: "{% raw %}allure-history-${{ github.ref_name }}-{% endraw %}"
+      - name: Test with coverage and profiling
+        id: tests
+        shell: bash
+        run: |
+          mkdir -p reports
+          uv run pytest --profile-svg --pstats-dir=reports/profiling \
+            --memray --memray-bin-path=reports/memory --memray-bin-prefix=pytest \
+            --color=no | tee reports/pytest.txt
+          test -s reports/profiling/combined.svg
+      - name: Build memory flame graphs
+        if: "{% raw %}${{ !cancelled() && steps.tests.outcome != 'skipped' }}{% endraw %}"
+        run: |
+          for capture in reports/memory/*.bin; do
+            [ -f "$capture" ] || continue
+            uv run memray flamegraph --force -o "${capture%.bin}.html" "$capture"
+          done
+      - name: Build Allure report
+        id: allure
+        if: "{% raw %}${{ !cancelled() && steps.tests.outcome != 'skipped' }}{% endraw %}"
+        run: |
+          npm install --prefix .github --no-package-lock
+          .github/node_modules/.bin/allure awesome allure-results --single-file --output allure-report \
+            --history-path reports/history.jsonl
+          cp -R allure-report/. reports/
       - name: Save Allure history
-        if: >-
-          !cancelled() &&
-          steps.allure_report.outputs.generated == 'true'
+        if: "{% raw %}${{ !cancelled() && steps.allure.outcome == 'success' }}{% endraw %}"
         uses: actions/cache/save@v6
         with:
-          path: .allure/history.jsonl
-          key: "{% raw %}${{ steps.allure_history.outputs.cache-primary-key }}{% endraw %}"
-      - name: Upload Allure history
-        if: >-
-          !cancelled() &&
-          steps.allure_report.outputs.generated == 'true'
-        uses: actions/upload-artifact@v7
+          path: reports/history.jsonl
+          key: "{% raw %}${{ steps.history.outputs.cache-primary-key }}{% endraw %}"
+      - name: Upload reports to Pages
+        id: pages
+        if: "{% raw %}${{ !cancelled() && steps.tests.outcome != 'skipped' }}{% endraw %}"
+        uses: actions/upload-pages-artifact@v5
         with:
-          name: allure-history
-          path: .allure/history.jsonl
-          include-hidden-files: true
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v7
-        id: allure_artifact
-        if: always()
-        with:
-          name: allure-report
-          path: allure-report/
-          if-no-files-found: error
-      - name: Post Allure summary to pull request
-        if: >-
-          !cancelled() &&
-          steps.allure_artifact.outcome == 'success' &&
-          github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.full_name == github.repository &&
-          github.actor != 'dependabot[bot]'
-        uses: allure-framework/allure-action@v0
-        with:
-          report-directory: ./allure-report
-          github-token: "{% raw %}${{ github.token }}{% endraw %}"
-
-  lint:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "{{cookiecutter.python_version}}"
-      - run: pip install --upgrade pip uv
-      - run: uv sync --extra dev --no-install-project
-      - run: uv run ruff check src tests
-      - run: uv run ruff format --check src tests
-
-  docs:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "{{cookiecutter.python_version}}"
-      - name: Install PDF system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 \
-            libffi-dev libcairo2 libglib2.0-0 fonts-dejavu-core
-      - run: pip install --upgrade pip uv
-      - run: uv sync --extra docs --no-install-project
-      - name: Build documentation PDF
-        run: |
-          # Match Sourcecraft: the PDF plugin can raise after writing the PDF.
-          uv run mkdocs build || test -f site/docs.pdf
-          test -s site/docs.pdf
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: docs-pdf
-          path: site/docs.pdf
-          if-no-files-found: error
+          path: reports
+      - name: Deploy reports
+        id: deployment
+        if: "{% raw %}${{ !cancelled() && steps.pages.outcome == 'success' }}{% endraw %}"
+        uses: actions/deploy-pages@v5
