@@ -179,7 +179,7 @@ jobs:
       - name: Upload Allure report
         id: allure_artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: allure-report
           path: ${{ env.PROJECT_DIR }}/allure-report/
@@ -199,7 +199,7 @@ jobs:
 
       - name: Upload documentation PDF
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docs-pdf
           path: ${{ env.PROJECT_DIR }}/site/docs.pdf
