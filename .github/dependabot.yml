@@ -21,6 +21,17 @@ updates:
       template-github-actions:
         patterns: ["*"]
 
+  # Allure CLI used by the generated project's reporting workflow.
+  - package-ecosystem: npm
+    directories:
+      - "/*cookiecutter.project_slug*/.github"
+    schedule:
+      interval: weekly
+    versioning-strategy: increase
+    groups:
+      template-reporting:
+        patterns: ["*"]
+
   # Tools used to generate and validate projects in the outer CI.
   - package-ecosystem: uv
     directory: /

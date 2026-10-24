@@ -1,12 +1,17 @@
 # Python Project Template
 
+[![CI](https://github.com/Alexxios/template/actions/workflows/ci.yml/badge.svg)](https://github.com/Alexxios/template/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/dynamic/xml?url=https%3A%2F%2Falexxios.github.io%2Ftemplate%2Fjunit.xml&query=%2Ftestsuites%2Ftestsuite%2F%40tests&label=tests&color=blue)](https://alexxios.github.io/template/)
+[![Coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Falexxios.github.io%2Ftemplate%2Fcoverage.json&query=%24.totals.percent_covered_display&label=coverage&suffix=%25&color=blue)](https://alexxios.github.io/template/coverage/)
+
 A [Cookiecutter](https://www.cookiecutter.io/) template for modern Python projects, pre-wired with:
 
 - **uv** for dependency management and packaging
 - **mashumaro** + **orjson** for serialization
 - **structlog** for structured logging
 - **dishka** for dependency injection
-- **memray** for memory profiling (in the `dev` extra on Linux/macOS)
+- **pytest-profiling** for CPU profiles and SVG call graphs
+- **pytest-memray** + **memray** for memory profiling (Linux/macOS)
 - **Ruff** for both formatting and linting (replaces black/isort/flake8)
 - **pytest** + **coverage.py** (via `pytest-cov`) for tests
 - **tox** for multi-Python-version test matrix
@@ -67,8 +72,8 @@ uv run mkdocs serve
 
 Release automation, Docker, and type-checkers (mypy/pyright) are intentionally
 out of scope — add them per project. CI is opt-in via the `ci_sourcecraft`,
-`ci_github`, and `ci_gitlab` flags; each enabled flag scaffolds parallel
-`test` / `lint` / `docs` flows for that provider.
+`ci_github`, and `ci_gitlab` flags. All three provide test, lint, and docs checks.
+GitHub also publishes test reports with coverage and profiling.
 
 ## GitHub mirror
 
@@ -87,43 +92,81 @@ git push github --all
 git push github --tags
 ```
 
-## GitHub CI
+## GitHub CI and reports
 
-The template's `.github/workflows/ci.yml` runs on pushes to `main`/`master`,
-pull requests, and manual dispatches. Like Sourcecraft CI, it generates a
-Python 3.14 project, scaffolds three additional packages, and validates the
-result. It enables only the generated project's GitHub workflow.
+The outer workflow runs on pushes to `main`/`master`, pull requests, and manual
+dispatches. It validates the generated project's own GitHub CI end to end:
 
-For the full create/push/wait/download/delete cycle, configure the repository
-secret `CI_GITHUB_TOKEN` with a classic personal access token with `repo`,
-`workflow`, and `delete_repo` scopes. The token must be able to create and delete
-private repositories under the mirror's owner. Set the optional repository
-variable `CI_GITHUB_OWNER` to use a different owner. A separate token is needed
-because the built-in `GITHUB_TOKEN` cannot create repositories, and pushes made
-with it do not trigger the generated project's CI.
+1. Generate a Python 3.14 project and scaffold three additional packages.
+2. Create a temporary GitHub repository and push the generated project.
+3. Trigger and wait for its own workflow, matching the workflow, event, branch,
+   and generated commit. A failed inner workflow fails the outer workflow.
+4. Download its logs and reports as the outer run's `generated-ci` artifact,
+   then delete the temporary repository, including after failures.
 
-When the secret is unavailable (including fork pull requests), CI runs the
-generated project's pytest, Ruff, documentation, and report commands locally.
-Both modes publish `allure-report` (the full report directory, including
-`index.html` and JSON summaries) and `docs-pdf` (`docs.pdf`)
-artifacts. The generated GitHub workflow also publishes these reports and runs
-its test, lint, and docs jobs in parallel.
+For an outer pull request, CI opens a pull request in the temporary project.
+That project's `pull-request.yml` runs tests with coverage, Ruff lint/formatting,
+and the docs PDF build. It does not run profiling or publish to Pages.
 
-Both workflows use the [official Allure action](https://allurereport.org/docs/integrations-github-action/)
-to post test summaries on pull requests from the same repository, including
-when tests fail. This uses the built-in `GITHUB_TOKEN`; the reporting jobs
-request `pull-requests: write` and `checks: write` permissions. Fork and
-Dependabot pull requests retain report artifacts without posting comments.
-The full report directory is preserved when transferring reports from temporary
-repositories so the action can read Allure's JSON summaries.
+For an outer push or manual run, CI configures Pages in the temporary repository
+and pushes to its `main` branch. The project's `ci.yml` runs tests with coverage,
+CPU and memory profiling, builds Allure, and deploys its reports. On the outer
+`main`/`master` branches, the downloaded reports are also published to this
+repository's Pages site before the next run replaces them. Failed tests retain
+their reports and leave the outer run failed.
 
-Generated GitHub test jobs also retain
-[Allure 3 test history](https://allurereport.org/docs/how-it-works-history-files/#allure-report-3)
-in `.allure/history.jsonl`. Each branch or pull request restores its own history,
-falling back to the default branch, and saves updated history even when tests
-fail. The JSONL file is also uploaded as `allure-history`. This uses GitHub
-Actions caches without additional secrets; history restarts if the cache has
-been evicted. Sourcecraft and GitLab history persistence is unchanged.
+### Integration credentials
+
+Keep the repository secret `CI_GITHUB_TOKEN`: use a classic PAT with `repo`,
+`workflow`, and `delete_repo` scopes. It must be able to create, push to, configure
+Pages in, and delete repositories under the selected owner. The optional
+`CI_GITHUB_OWNER` repository variable selects a different owner; otherwise the
+mirror's owner is used. Temporary repositories match this repository's public
+or private visibility. Private repositories need a GitHub plan that supports
+[Pages for private repositories](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site).
+
+The integration check fails explicitly when the token is unavailable, including
+fork PRs. For Dependabot PRs, configure `CI_GITHUB_TOKEN` as a Dependabot secret
+as well. Generated projects themselves use only their built-in `GITHUB_TOKEN`.
+
+### Enable Pages
+
+1. In [Settings → Pages](https://github.com/Alexxios/template/settings/pages), set
+   **Build and deployment → Source → GitHub Actions**.
+2. If the `github-pages` environment restricts deployment branches, allow both
+   `main` and `master`.
+3. Configure `CI_GITHUB_TOKEN` above and push to `main` or `master`. The outer
+   workflow publishes the reports downloaded from the generated project's CI.
+
+The [Pages site](https://alexxios.github.io/template/) opens the native Allure report.
+Other outputs are served directly:
+
+| Path | Report |
+| --- | --- |
+| `/` | Allure test results and history |
+| `/coverage/` | HTML line and branch coverage |
+| `/profiling/combined.svg` | CPU call graph |
+| `/profiling/*.prof` | Per-test and combined CPU profiles |
+| `/memory/*.html`, `/memory/*.bin` | Per-test memory flame graphs and captures |
+| `/junit.xml`, `/coverage.xml`, `/coverage.json`, `/pytest.txt` | Raw reports and pytest output |
+| `/history.jsonl` | Allure 3 history |
+
+The README badges use Shields.io's dynamic XML/JSON APIs to read JUnit and
+coverage reports directly. The tests badge shows the test count; the coverage
+badge shows coverage.py's combined line/branch percentage.
+
+Each deployment replaces the site with reports from a generated project's run.
+Publishing is serialized. The outer report measures generated project code;
+each temporary repository starts with fresh history. In permanent generated
+projects, Allure history is restored from a branch-specific Actions cache and
+saved after report generation, including failed tests. Cache eviction starts a
+new history.
+
+Reports are publicly served by Pages, including coverage source listings.
+Coverage and both profilers run together, so timings include instrumentation
+overhead. pytest-profiling names files after test names; generated smoke tests
+have package-specific names to avoid collisions. Give custom tests unique names
+within a profiling run.
 
 ## Dependency updates
 
@@ -131,12 +174,15 @@ Dependabot checks weekly and opens grouped update pull requests on GitHub.
 The template repository's `.github/dependabot.yml` covers its own Actions and
 CI tools (`requirements-ci.txt`, using the uv ecosystem), plus the template's
 Actions, Python dependencies (`templates/dependencies/pyproject.toml`, also using uv),
-and pre-commit hooks.
+Allure CLI (`{{cookiecutter.project_slug}}/.github/package.json`, using npm), and
+pre-commit hooks. The workflow directory rules cover both generated workflows,
+including `pull-request.yml`.
 
 Projects generated with `ci_github=yes` also include `.github/dependabot.yml`.
 They receive weekly updates for GitHub Actions, Python dependencies through uv
-(including `uv.lock` when committed), and pre-commit hooks. Python updates use
-`versioning-strategy: increase` so lower bounds such as `ruff>=0.7.0` are updated
+(including `uv.lock` when committed), Allure CLI through npm, and pre-commit hooks.
+The reporting workflow installs the Allure version declared in `.github/package.json`.
+Python updates use `versioning-strategy: increase` so lower bounds such as `ruff>=0.7.0` are updated
 even when the newest release already satisfies the existing range.
 
 The shared Python dependency manifest is valid TOML that Dependabot can update.

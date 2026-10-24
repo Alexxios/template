@@ -2,11 +2,17 @@
 
 {{cookiecutter.description}}
 
+{% if cookiecutter.ci_github == "yes" %}
+[![Tests](https://img.shields.io/badge/dynamic/xml?url=https%3A%2F%2FOWNER.github.io%2F{{cookiecutter.project_slug}}%2Fjunit.xml&query=%2Ftestsuites%2Ftestsuite%2F%40tests&label=tests&color=blue)](https://OWNER.github.io/{{cookiecutter.project_slug}}/)
+[![Coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2FOWNER.github.io%2F{{cookiecutter.project_slug}}%2Fcoverage.json&query=%24.totals.percent_covered_display&label=coverage&suffix=%25&color=blue)](https://OWNER.github.io/{{cookiecutter.project_slug}}/coverage/)
+{% endif %}
+
 ## Included tools
 
 Runtime dependencies include **mashumaro** and **orjson** for serialization,
 **structlog** for structured logging, and **dishka** for dependency injection.
-The `dev` extra also includes **memray** for memory profiling on Linux/macOS.
+The `dev` extra includes **pytest-profiling** for CPU profiles and
+**pytest-memray** / **memray** for memory profiling on Linux/macOS.
 
 ## Development
 
@@ -45,35 +51,68 @@ by setuptools under `src/`, so no manual `pyproject.toml` registration is needed
 Run `uv sync` afterwards to refresh the environment.
 
 {% if cookiecutter.ci_github == "yes" %}
-## Test history in GitHub CI
+## GitHub CI and reports
 
-The test job restores `.allure/history.jsonl` before running tests and appends
-the current results when building the Allure 3 report. It saves history even
-when tests fail and uploads it as the `allure-history` artifact alongside the
-`allure-report` artifact. No additional secrets are required.
+Pull requests run tests with coverage, Ruff lint/formatting, and the docs PDF
+build in a separate workflow. Reports are attached to the Actions run. These
+checks use a read-only token and do not run profiling, update Allure history,
+or publish to Pages.
 
-Each branch or pull request keeps its own history. A new history starts from
-the default branch's latest cached history when available. Pull request results
-do not update the default branch's history. Test jobs for the same ref run one
-at a time to avoid overwriting each other's updates.
+Every push to `main` or `master` runs pytest once with coverage, `pytest-profiling`,
+and `pytest-memray`, then publishes the native reports to GitHub Pages. Failed
+tests still publish their reports and leave the workflow failed.
 
-History persists through GitHub Actions caches, which GitHub may evict after
-seven days without access or when storage limits are reached. If no cache is
-available, the next report starts a new history. The `allure-history` artifact
-also provides a downloadable copy for each run that builds a report.
+### Enable Pages
 
-To accumulate history locally with Node.js 24 or later installed:
+1. In **Settings → Pages → Build and deployment → Source**, select **GitHub Actions**.
+2. If the `github-pages` environment restricts deployment branches, allow both
+   `main` and `master`.
+3. Push to `main` or `master`. No extra token or repository variable is required.
+4. Replace `OWNER` in the README badges with your GitHub owner, and adjust the
+   repository name or Pages domain if necessary.
+
+Your site at `https://OWNER.github.io/{{cookiecutter.project_slug}}/` serves:
+
+| Path | Report |
+| --- | --- |
+| `/` | Native Allure report with test history |
+| `/coverage/` | HTML line and branch coverage |
+| `/profiling/combined.svg` | CPU call graph |
+| `/profiling/*.prof` | Per-test and combined CPU profiles |
+| `/memory/*.html`, `/memory/*.bin` | Per-test memory flame graphs and captures |
+| `/junit.xml`, `/coverage.xml`, `/coverage.json`, `/pytest.txt` | Raw reports and pytest output |
+| `/history.jsonl` | Allure 3 history |
+
+Each deployment replaces the site with the latest run from `main` or `master`.
+The README badges read JUnit and coverage JSON directly through Shields.io's
+[dynamic XML](https://shields.io/badges/dynamic-xml-badge) and
+[dynamic JSON](https://shields.io/badges/dynamic-json-badge) APIs. They show test
+count and coverage.py's combined line/branch percentage. Pages serves these
+reports publicly, including coverage source listings.
+
+Allure history uses a separate Actions cache per branch and is saved after
+report generation even if tests fail. Runs are queued to serialize publishing;
+cache eviction starts a new history.
+
+To collect the same test data locally on Linux/macOS, install Graphviz
+(`brew install graphviz` on macOS or `sudo apt-get install graphviz` on Ubuntu):
 
 ```bash
-uv run pytest
-npx --yes allure@3 awesome allure-results --single-file --output allure-report \
-  --history-path .allure/history.jsonl
+uv sync --extra dev
+uv run pytest --profile-svg --pstats-dir=reports/profiling \
+  --memray --memray-bin-path=reports/memory --memray-bin-prefix=pytest
 ```
+
+Coverage and the profilers run together, so timings include instrumentation
+overhead. pytest-profiling names files after test names; use unique names within
+a profiling run. Generated smoke tests already have package-specific names.
 
 ## Dependency updates
 
-Dependabot checks GitHub Actions, Python dependencies through uv, and pre-commit
-hooks weekly and opens grouped update pull requests. Commit `uv.lock` after
+Dependabot checks GitHub Actions, Python dependencies through uv, Allure CLI
+through npm, and pre-commit hooks weekly and opens grouped update pull requests.
+The reporting workflow installs the Allure version declared in `.github/package.json`.
+Commit `uv.lock` after
 running `uv sync` so updates also maintain the resolved dependency versions.
 
 Keep `.github/dependabot.yml` on your GitHub repository's default branch to
