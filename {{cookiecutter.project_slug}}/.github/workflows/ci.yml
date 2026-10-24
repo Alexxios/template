@@ -65,13 +65,13 @@ jobs:
         if: >-
           !cancelled() &&
           steps.allure_report.outputs.generated == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: allure-history
           path: .allure/history.jsonl
           include-hidden-files: true
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         id: allure_artifact
         if: always()
         with:
@@ -124,7 +124,7 @@ jobs:
           # Match Sourcecraft: the PDF plugin can raise after writing the PDF.
           uv run mkdocs build || test -f site/docs.pdf
           test -s site/docs.pdf
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: docs-pdf
