@@ -15,12 +15,12 @@ dependencies = [
 # {% macro project_tooling() %}
 [project.optional-dependencies]
 dev = [
-    "ruff>=0.17.1",
+    "ruff>=0.17.2",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pytest-profiling>=1.8.1",
     "pytest-memray>=1.11.0; sys_platform == 'linux' or sys_platform == 'darwin'",
-    "coverage>=7.16.2",
+    "coverage>=7.17.0",
     "tox>=4.67.1",
     "pre-commit>=4.7.0",
     "cookiecutter>=2.7.1",
