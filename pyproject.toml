@@ -29,7 +29,7 @@ package = false
 [tool.ruff]
 line-length = 100
 target-version = "py314"
-extend-exclude = ["src", "docs/sourcecraft", "scripts/sourcecraft_repo.py"]
+extend-exclude = ["src", "templates", "docs/sourcecraft", "scripts/sourcecraft_repo.py"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "UP", "N", "SIM", "C4"]

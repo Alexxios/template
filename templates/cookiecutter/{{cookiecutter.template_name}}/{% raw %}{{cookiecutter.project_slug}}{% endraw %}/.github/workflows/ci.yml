@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "{{cookiecutter.python_version}}"
+      - name: Install tools
+        run: |
+          python -m pip install uv
+          make bootstrap
+      - name: Check project
+        run: make check
+      - name: Retain test reports
+        if: "{% raw %}${{ always() }}{% endraw %}"
+        uses: actions/upload-artifact@v7
+        with:
+          name: check-reports
+          path: reports/
+          if-no-files-found: warn

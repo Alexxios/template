@@ -1,0 +1,17 @@
+site_name: {{cookiecutter.project_name | tojson}}
+site_description: {{cookiecutter.description | tojson}}
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+
+nav:
+  - Home: index.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences
+
+plugins:
+  - search

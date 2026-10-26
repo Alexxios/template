@@ -1,0 +1,23 @@
+# Plain dependency manifest for Dependabot; imported by the generated template.
+[project]
+name = "template-basic-tooling"
+version = "0.1.0"
+
+# {% macro project_tooling() %}
+[project.optional-dependencies]
+dev = [
+    "uv>=0.13.4",
+    "ruff>=0.17.1",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "coverage>=7.16.2",
+    "pre-commit>=4.7.0",
+]
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.7.7",
+]
+# End of tooling dependencies. {%- endmacro %}
+
+[tool.uv]
+package = false

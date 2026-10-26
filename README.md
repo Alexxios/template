@@ -5,26 +5,32 @@
 [![Coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Falexxios.github.io%2Ftemplate%2Fcoverage.json&query=%24.totals.percent_covered_display&label=coverage&suffix=%25&color=blue)](https://alexxios.github.io/template/coverage/)
 
 A collection of [Cookiecutter](https://www.cookiecutter.io/) templates under `src/`.
-The repository also acts as a metatemplate: `scripts/new_template.py` creates a
-new selectable template from an existing starter.
+The metatemplate in `templates/cookiecutter/` provides basic project tooling.
+`scripts/new_template.py` renders it into a new selectable template under `src/`.
 
 ```text
-src/
-└── base/
+templates/
+└── cookiecutter/                    # Tooling-only Cookiecutter seed
     ├── cookiecutter.json
-    ├── hooks/
-    ├── templates/dependencies/pyproject.toml
-    └── {{cookiecutter.project_slug}}/
-scripts/
-├── new_template.py
-└── sourcecraft_repo.py
+    └── {{cookiecutter.template_name}}/
+        ├── cookiecutter.json
+        ├── hooks/
+        ├── templates/dependencies/pyproject.toml
+        └── {{cookiecutter.project_slug}}/
+            ├── Makefile
+            ├── LICENSE
+            ├── pyproject.toml
+            ├── README.md
+            ├── .gitignore
+            ├── .pre-commit-config.yaml
+            ├── mkdocs.yml
+            └── docs/
+src/
+└── base/                           # Existing Python src-layout template
+scripts/new_template.py
 tests/
 docs/
 pyproject.toml
-tox.ini
-.pre-commit-config.yaml
-mkdocs.yml
-LICENSE
 ```
 
 The `base` template retains the existing Python project tooling:
@@ -87,21 +93,39 @@ uv run python scripts/new_template.py python-lib
 cookiecutter . --directory src/python-lib
 ```
 
-This copies `src/base/` into `src/python-lib/`, including its hooks, dependency
-manifest, nested package helper, and project tooling. Cookiecutter expressions
-stay unrendered, and existing templates are never overwritten. Customize the new
-template's `cookiecutter.json` and `{{cookiecutter.project_slug}}/` directory.
-Use `--from another-template` to copy a different starter.
+The script runs Cookiecutter against `templates/cookiecutter/`. The result at
+`src/python-lib/` contains a `cookiecutter.json` and a project payload with a
+Makefile, license, pyproject (uv, Ruff, pytest, coverage), README, gitignore,
+pre-commit hooks, MkDocs, and optional CI configuration.
 
-After committing and pushing the new template, projects can use it directly:
+The seed adds no application source, tests, package generator, services, or
+libraries. Its tooling discovers files without assuming a source layout, and
+packaging starts disabled. Add your template's layout under
+`src/python-lib/{{cookiecutter.project_slug}}/`, customize its inputs, and enable
+packaging if the project needs it. `docs/` contains only the MkDocs starter page.
+
+You can also use the metatemplate directly:
+
+```bash
+uv run cookiecutter templates/cookiecutter --output-dir src template_name=python-lib
+```
+
+Use either creation command once for a given name; existing templates are never
+overwritten. After customizing, committing, and pushing the template, generate
+projects from GitHub:
 
 ```bash
 cookiecutter gh:Alexxios/template --directory src/python-lib
 ```
 
-Templates are independent copies: edits to `base` do not propagate to existing
-templates. Choose the template through `--directory`; the former unused
-`designation` prompt has been removed.
+Generated projects offer `make bootstrap`, `make lint`, `make test`, `make docs`,
+and `make check`. Add application code and tests before running `make check`;
+pytest reports an error when there are no tests. GitHub CI is enabled by default,
+and Sourcecraft CI remains available with `ci_sourcecraft=yes`.
+
+Templates are independent snapshots of the tooling seed. Later seed changes do
+not rewrite existing templates. `src/base` remains the existing concrete Python
+layout and is not used as the seed for new templates.
 
 ## Develop this repository
 
@@ -118,12 +142,12 @@ uv run tox
 uv run mkdocs serve
 ```
 
-Root checks validate the scaffolding helper and render every template under
-`src/`. Raw template payloads are excluded from repository linting; generated
-projects retain their own checks. The existing Sourcecraft API helper is kept
+Root checks validate both stages of metatemplate rendering and every template
+under `src/`. Raw payloads in `src/` and `templates/` are excluded from repository
+linting; generated projects retain their own checks. The existing Sourcecraft API helper is kept
 unchanged and is outside the new Ruff checks.
 
-## After generation
+## After generating the base project
 
 ```bash
 cd <project_slug>
@@ -137,26 +161,24 @@ uv run mkdocs serve
 ## What's not included
 
 Release automation, Docker, and type-checkers (mypy/pyright) are intentionally
-out of scope — add them per project. CI is opt-in via the `ci_sourcecraft`,
-`ci_github`, and `ci_gitlab` flags. All three provide test, lint, and docs checks.
+out of scope — add them per project. The base template enables GitHub CI by
+default; Sourcecraft and GitLab can be selected with `ci_sourcecraft` and
+`ci_gitlab`. All three provide test, lint, and docs checks.
 GitHub also publishes test reports with coverage and profiling.
 
-## GitHub mirror
+## Primary repository
 
-The primary repository is on Sourcecraft. The GitHub mirror is
-[Alexxios/template](https://github.com/Alexxios/template).
-For an existing Sourcecraft checkout, add the second remote once:
-
-```bash
-git remote add github https://github.com/Alexxios/template.git
-```
-
-Push branches and tags to GitHub when updating the mirror:
+[Alexxios/template on GitHub](https://github.com/Alexxios/template) is the primary
+repository for development, pull requests, dependency updates, and CI reports.
 
 ```bash
-git push github --all
-git push github --tags
+git clone https://github.com/Alexxios/template.git
 ```
+
+Sourcecraft remains supported. This repository retains `.sourcecraft/ci.yaml`
+and its temporary-repository integration workflow. Generated projects can also
+include Sourcecraft CI with `ci_sourcecraft=yes`. A Sourcecraft mirror should
+follow the GitHub repository.
 
 ## GitHub CI and reports
 
@@ -188,7 +210,7 @@ Keep the repository secret `CI_GITHUB_TOKEN`: use a classic PAT with `repo`,
 `workflow`, and `delete_repo` scopes. It must be able to create, push to, configure
 Pages in, and delete repositories under the selected owner. The optional
 `CI_GITHUB_OWNER` repository variable selects a different owner; otherwise the
-mirror's owner is used. Temporary repositories match this repository's public
+GitHub repository's owner is used. Temporary repositories match this repository's public
 or private visibility. Private repositories need a GitHub plan that supports
 [Pages for private repositories](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site).
 
@@ -239,14 +261,14 @@ within a profiling run.
 
 Dependabot checks weekly and opens grouped update pull requests on GitHub.
 The template repository's `.github/dependabot.yml` covers its own Actions and
-repository and CI tools (`pyproject.toml`, using uv),
-plus each template's
-Actions, Python dependencies (`src/*/templates/dependencies/pyproject.toml`, also using uv),
+repository tooling (`pyproject.toml`, using uv), plus each template's Actions,
+Python dependencies (`src/*/templates/dependencies/pyproject.toml`, also using uv),
 Allure CLI (`src/*/{{cookiecutter.project_slug}}/.github/package.json`, using npm), and
 pre-commit hooks. The workflow directory rules cover both generated workflows,
-including `pull-request.yml`.
+including `pull-request.yml`. The tooling seed in `templates/cookiecutter/`
+has matching Actions, dependency-manifest, and pre-commit update rules.
 
-Projects generated with `ci_github=yes` also include `.github/dependabot.yml`.
+Base projects generated with `ci_github=yes` also include `.github/dependabot.yml`.
 They receive weekly updates for GitHub Actions, Python dependencies through uv
 (including `uv.lock` when committed), Allure CLI through npm, and pre-commit hooks.
 The reporting workflow installs the Allure version declared in `.github/package.json`.
@@ -264,5 +286,5 @@ GitHub-expression strings in workflow templates are quoted so Dependabot can
 parse the YAML before Cookiecutter renders it.
 
 Merge these configurations into each GitHub repository's default branch to
-activate updates. Merge dependency PRs on GitHub, then fetch those changes and
-push them to Sourcecraft when updating the primary repository.
+activate updates. Merge dependency PRs on GitHub. If maintaining a Sourcecraft
+mirror, sync it from GitHub afterwards.

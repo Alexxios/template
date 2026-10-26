@@ -73,7 +73,7 @@ workflows:
                 git config --global user.name "CI Bot"
                 git config --global user.email "ci@sourcecraft.dev"
 
-                # 2. Generate project from this template (defaults: ci_sourcecraft=yes, ci_github=no, ci_gitlab=no)
+                # 2. Select Sourcecraft CI explicitly; GitHub is the project default.
                 #    init_git=yes lets the post_gen hook handle git init + add + commit.
                 TEMPLATE_DIR="$(pwd)"
                 GEN_ROOT="$(mktemp -d)"
@@ -82,6 +82,7 @@ workflows:
                   project_name="CI Test Project" \
                   python_version=3.14 \
                   python_min_version=3.14 \
+                  ci_sourcecraft=yes ci_github=no ci_gitlab=no \
                   init_git=yes \
                   -o "$GEN_ROOT"
                 cd "$GEN_ROOT/ci-test-project"

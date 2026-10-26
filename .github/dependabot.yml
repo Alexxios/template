@@ -15,6 +15,7 @@ updates:
   - package-ecosystem: github-actions
     directories:
       - "/src/*/*cookiecutter.project_slug*/.github/workflows"
+      - "/templates/cookiecutter/*cookiecutter.template_name*/*cookiecutter.project_slug*/.github/workflows"
     schedule:
       interval: weekly
     groups:
@@ -46,6 +47,7 @@ updates:
   - package-ecosystem: uv
     directories:
       - "/src/*/templates/dependencies"
+      - "/templates/cookiecutter/*cookiecutter.template_name*/templates/dependencies"
     schedule:
       interval: weekly
     versioning-strategy: increase
@@ -57,6 +59,7 @@ updates:
     directories:
       - "/"
       - "/src/*/*cookiecutter.project_slug*"
+      - "/templates/cookiecutter/*cookiecutter.template_name*/*cookiecutter.project_slug*"
     schedule:
       interval: weekly
     groups:

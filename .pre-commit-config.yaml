@@ -1,5 +1,5 @@
 # Template payloads contain unrendered Jinja. Check generated projects in tests/.
-exclude: ^(src/|docs/sourcecraft/|scripts/sourcecraft_repo\.py$)
+exclude: ^(src/|templates/|docs/sourcecraft/|scripts/sourcecraft_repo\.py$)
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
