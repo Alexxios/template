@@ -1,0 +1,19 @@
+template = "[[ template ]]"
+
+[context]
+python_version = "3.14"
+python_min_version = "3.14"
+
+[github]
+push_workflow = "ci.yml"
+pull_request_workflow = "ci.yml"
+push_artifact = "check-reports"
+push_artifact_format = "directory"
+pull_request_artifact = "check-reports"
+publish_pages = false
+
+[sourcecraft]
+workflow = "ci"
+artifacts = [
+    { task = "check", cube = "tooling", paths = ["reports/junit.xml", "reports/coverage.xml"] },
+]

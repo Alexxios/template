@@ -1,4 +1,4 @@
-name: Test template generation
+name: Check metatemplate
 
 on:
   push:
@@ -10,13 +10,9 @@ permissions:
   contents: read
 
 jobs:
-  test-template-generation:
+  check-repository:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    outputs:
-      pages-ready: ${{ steps.collect.outputs.pages-ready == 'true' && steps.artifact.outcome == 'success' }}
-    env:
-      GH_REPO: ${{ vars.CI_GITHUB_OWNER || github.repository_owner }}/ci-test-template-${{ github.run_id }}-${{ github.run_attempt }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
@@ -24,168 +20,15 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
-      - name: Check integration credentials
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+      - name: Install repository tooling
         run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "::error::CI_GITHUB_TOKEN is required to create a repository and run the generated project's CI."
-            exit 1
-          fi
-      - name: Install tooling
-        run: python -m pip install -r requirements-ci.txt
-      - name: Generate and validate project
-        run: |
-          PROJECT_DIR="$RUNNER_TEMP/template-generation/ci-test-project"
-          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-          git config --global user.name "CI Bot"
-          git config --global user.email "ci@users.noreply.github.com"
-          cookiecutter --no-input "$GITHUB_WORKSPACE" \
-            project_name="CI Test Project" python_version=3.14 python_min_version=3.14 \
-            ci_sourcecraft=no ci_github=yes ci_gitlab=no init_git=yes \
-            --output-dir "$RUNNER_TEMP/template-generation"
-          cd "$PROJECT_DIR"
-          test -d .git
-          test -f pyproject.toml
-          grep -qE 'envlist\s*=\s*py314' tox.ini
-          test -f .github/workflows/ci.yml
-          test -f .github/workflows/pull-request.yml
-          test -f .github/dependabot.yml
-          test ! -e .sourcecraft
-          test ! -e .gitlab-ci.yml
-
-          # Bootstrap the remote before enabling Pages or opening a PR.
-          git commit --amend -m "Initialize integration fixture [skip ci]"
-          echo "BASE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-          for package in pkg_alpha pkg_beta pkg_gamma; do
-            python scripts/new_package.py --no-input "package_name=$package"
-          done
-          for package in ci_test_project pkg_alpha pkg_beta pkg_gamma; do
-            test -f "src/$package/__init__.py"
-            test -f "src/$package/py.typed"
-            test -f "tests/$package/test_smoke.py"
-            test ! -e "tests/$package/__init__.py"
-          done
-          git add -A
-          git commit -m "Scaffold additional packages"
-          echo "GENERATED_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-      - name: Create temporary GitHub repository
-        id: create
-        working-directory: ${{ env.PROJECT_DIR }}
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-          REPO_VISIBILITY: ${{ github.event.repository.private && 'private' || 'public' }}
-        run: |
-          gh repo create "$GH_REPO" "--$REPO_VISIBILITY" \
-            --description "Ephemeral repo created by CI for template validation"
-          echo "created=true" >> "$GITHUB_OUTPUT"
-          gh auth setup-git --hostname github.com
-          git remote add origin "https://github.com/$GH_REPO.git"
-          git push origin "$BASE_COMMIT:refs/heads/main"
-          gh repo edit "$GH_REPO" --default-branch main
-      - name: Trigger generated project's CI
-        working-directory: ${{ env.PROJECT_DIR }}
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-        run: |
-          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            git push origin HEAD:refs/heads/ci-checks
-            gh pr create --repo "$GH_REPO" --base main --head ci-checks \
-              --title "Validate generated project" \
-              --body "Integration check for $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          else
-            gh api --method POST "repos/$GH_REPO/pages" -f build_type=workflow
-            git push origin HEAD:refs/heads/main
-          fi
-      - name: Wait for generated project CI
-        id: wait
-        timeout-minutes: 45
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-        run: |
-          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            workflow=pull-request.yml
-            event=pull_request
-            branch=ci-checks
-          else
-            workflow=ci.yml
-            event=push
-            branch=main
-          fi
-          run_id=""
-          for attempt in $(seq 1 36); do
-            if run_id="$(gh run list --repo "$GH_REPO" --workflow "$workflow" \
-              --branch "$branch" --event "$event" --commit "$GENERATED_COMMIT" \
-              --json databaseId --jq '.[0].databaseId // empty')" && [ -n "$run_id" ]; then
-              break
-            fi
-            sleep 5
-          done
-          if [ -z "$run_id" ]; then
-            echo "::error::No $workflow run found for $GH_REPO at $GENERATED_COMMIT"
-            exit 1
-          fi
-          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
-          timeout 40m gh run watch "$run_id" --repo "$GH_REPO" --exit-status --interval 15
-      - name: Collect generated project's logs and reports
-        id: collect
-        if: ${{ always() && steps.wait.outputs.run_id != '' }}
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-          RUN_ID: ${{ steps.wait.outputs.run_id }}
-        run: |
-          mkdir -p generated-ci/reports
-          gh run view "$RUN_ID" --repo "$GH_REPO" --log > generated-ci/run.log \
-            || echo "::warning::Could not download the generated CI log."
-          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            gh run download "$RUN_ID" --repo "$GH_REPO" --name check-reports \
-              --dir generated-ci/reports
-          else
-            gh run download "$RUN_ID" --repo "$GH_REPO" --name github-pages \
-              --dir "$RUNNER_TEMP/inner-pages"
-            tar -xf "$RUNNER_TEMP/inner-pages/artifact.tar" -C generated-ci/reports
-            test -s generated-ci/reports/index.html
-            echo "pages-ready=true" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Retain generated project's logs and reports
-        id: artifact
-        if: ${{ always() && steps.wait.outputs.run_id != '' }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: generated-ci
-          path: generated-ci/
-          if-no-files-found: error
-      - name: Delete temporary GitHub repository
-        if: ${{ always() && steps.create.outputs.created == 'true' }}
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-        run: gh repo delete "$GH_REPO" --yes
-
-  publish-reports:
-    needs: test-template-generation
-    if: >-
-      ${{ !cancelled() && github.event_name != 'pull_request' &&
-          (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') &&
-          needs.test-template-generation.outputs.pages-ready == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      pages: write
-      id-token: write
-    concurrency:
-      group: github-pages
-      queue: max
-      cancel-in-progress: false
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/download-artifact@v8
-        with:
-          name: generated-ci
-          path: generated-ci
-      - uses: actions/upload-pages-artifact@v5
-        with:
-          path: generated-ci/reports
-      - uses: actions/deploy-pages@v5
-        id: deployment
+          python -m pip install uv
+          make bootstrap
+      - name: Check generated workflows and README
+        run: make check-generated
+      - name: Test metatemplate and render templates
+        run: make test
+      - name: Lint and check formatting
+        run: make lint
+      - name: Build repository documentation
+        run: make docs

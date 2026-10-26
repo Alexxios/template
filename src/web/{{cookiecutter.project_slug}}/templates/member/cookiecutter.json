@@ -1,0 +1,6 @@
+{
+  "package_name": "new_package",
+  "description": "A workspace package",
+  "version": "{{cookiecutter.version}}",
+  "_kind": "lib"
+}

@@ -1,0 +1,61 @@
+[project]
+name = "python-template-collection"
+version = "0.1.0"
+description = "Cookiecutter templates and tooling for creating new templates"
+readme = "README.md"
+license = "LicenseRef-Proprietary"
+license-files = ["LICENSE"]
+requires-python = ">=3.14"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "cookiecutter>=2.7.1",
+    "jinja2>=3.1.6",
+    "uv>=0.13.4",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "coverage>=7.16.2",
+    "ruff>=0.17.1",
+    "pre-commit>=4.7.0",
+    "tox>=4.67.1",
+]
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.7.7",
+]
+
+# src/ contains Cookiecutter templates, rather than an installable Python package.
+[tool.uv]
+package = false
+
+[tool.template_ci]
+repository = "Alexxios/template"
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+extend-exclude = ["src", "templates", "docs/sourcecraft", "scripts/sourcecraft_repo.py"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "N", "SIM", "C4"]
+ignore = ["E203", "E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+docstring-code-format = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "--import-mode=importlib --cov --cov-report=term-missing --cov-report=html:reports/coverage --cov-report=xml:reports/coverage.xml --junitxml=reports/junit.xml"
+
+[tool.coverage.run]
+source = ["scripts"]
+omit = ["scripts/sourcecraft_repo.py"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true

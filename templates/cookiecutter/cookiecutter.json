@@ -1,0 +1,9 @@
+{
+  "template_name": "new-template",
+  "_copy_without_render": [
+    "cookiecutter.json",
+    "hooks",
+    "templates",
+    "{% raw %}{{cookiecutter.project_slug}}{% endraw %}"
+  ]
+}

@@ -1,0 +1,45 @@
+# Byte-compiled / optimized
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+node_modules/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.allure/
+allure-results/
+allure-report/
+reports/
+prof/
+
+# Tox
+.tox/
+
+# MkDocs
+site/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
