@@ -1,0 +1,1 @@
+"""Metatemplate maintenance commands."""

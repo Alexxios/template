@@ -1,0 +1,19 @@
+template = "base"
+
+[context]
+python_version = "3.14"
+python_min_version = "3.14"
+
+[github]
+push_workflow = "ci.yml"
+pull_request_workflow = "pull-request.yml"
+push_artifact = "github-pages"
+pull_request_artifact = "check-reports"
+pages = true
+
+[sourcecraft]
+workflow = "ci"
+artifacts = [
+    { task = "test", cube = "allure", paths = ["allure-report/index.html"] },
+    { task = "docs", cube = "mkdocs", paths = ["site/docs.pdf"] },
+]

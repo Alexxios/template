@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import importlib.util
-import json
 import os
 import shutil
 import subprocess
@@ -17,35 +15,10 @@ import pytest
 import yaml
 from cookiecutter.main import cookiecutter
 
+from scripts import new_template
+
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location("new_template", ROOT / "scripts/new_template.py")
-new_template = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(new_template)
 TEMPLATES = sorted(path.parent.name for path in (ROOT / "src").glob("*/cookiecutter.json"))
-
-
-@pytest.fixture
-def collection(tmp_path, cookiecutter_config):
-    root = tmp_path / "collection"
-    shutil.copytree(ROOT / "templates/cookiecutter", root / "templates/cookiecutter")
-    (root / "scripts").mkdir()
-    shutil.copy2(ROOT / "scripts/new_template.py", root / "scripts/new_template.py")
-    return root
-
-
-@pytest.fixture
-def cookiecutter_config(tmp_path, monkeypatch):
-    config = tmp_path / "cookiecutter-config.json"
-    config.write_text(
-        json.dumps(
-            {
-                "cookiecutters_dir": str(tmp_path / "cookiecutters"),
-                "replay_dir": str(tmp_path / "replay"),
-            }
-        )
-    )
-    monkeypatch.setenv("COOKIECUTTER_CONFIG", str(config))
-    return config
 
 
 def render(root, name, tmp_path, cookiecutter_config, **context):

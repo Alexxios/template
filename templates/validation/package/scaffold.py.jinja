@@ -1,0 +1,11 @@
+"""Add example code and tests to a generated project before running its inner CI."""
+
+from pathlib import Path
+
+
+def scaffold(project: Path) -> None:
+    # Replace this fixture with examples that exercise your template's layout.
+    (project / "example.py").write_text("def add(a: int, b: int) -> int:\n    return a + b\n")
+    (project / "test_example.py").write_text(
+        "from example import add\n\n\ndef test_add():\n    assert add(2, 3) == 5\n"
+    )
