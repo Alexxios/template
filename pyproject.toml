@@ -3,6 +3,8 @@ name = "python-template-collection"
 version = "0.1.0"
 description = "Cookiecutter templates and tooling for creating new templates"
 readme = "README.md"
+license = "LicenseRef-Proprietary"
+license-files = ["LICENSE"]
 requires-python = ">=3.14"
 dependencies = []
 

@@ -14,6 +14,8 @@ A collection of [Cookiecutter](https://www.cookiecutter.io/) templates under `sr
 The metatemplate in `templates/cookiecutter/` provides basic project tooling.
 `scripts/new_template.py` renders it into a new selectable template under `src/`.
 
+This metatemplate repository is proprietary. See [LICENSE](LICENSE).
+
 ```text
 templates/
 ├── validation/                     # Outer CI and fixture package templates
