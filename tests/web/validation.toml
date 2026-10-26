@@ -1,4 +1,4 @@
-template = "webapp"
+template = "web"
 
 [context]
 python_version = "3.14"
@@ -6,10 +6,11 @@ python_min_version = "3.14"
 
 [github]
 push_workflow = "ci.yml"
-pull_request_workflow = "ci.yml"
-push_artifact = "check-reports"
+pull_request_workflow = "pull-request.yml"
+push_artifact = "github-pages"
+push_artifact_format = "pages"
 pull_request_artifact = "check-reports"
-pages = false
+publish_pages = false
 
 [sourcecraft]
 workflow = "ci"

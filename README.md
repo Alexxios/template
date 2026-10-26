@@ -6,7 +6,7 @@
 | Template | Validation |
 | --- | --- |
 | [base](src/base/) | [![base](https://github.com/Alexxios/template/actions/workflows/validate-base.yml/badge.svg)](https://github.com/Alexxios/template/actions/workflows/validate-base.yml) |
-| [webapp](src/webapp/) | [![webapp](https://github.com/Alexxios/template/actions/workflows/validate-webapp.yml/badge.svg)](https://github.com/Alexxios/template/actions/workflows/validate-webapp.yml) |
+| [web](src/web/) | [![web](https://github.com/Alexxios/template/actions/workflows/validate-web.yml/badge.svg)](https://github.com/Alexxios/template/actions/workflows/validate-web.yml) |
 
 <!-- END GENERATED TEMPLATE STATUS -->
 
@@ -34,12 +34,12 @@ templates/
             └── docs/
 src/
 ├── base/                           # Python src-layout template
-└── webapp/                         # Empty services/libs uv workspace
+└── web/                            # Empty services/libs uv workspace
 scripts/new_template.py
 scripts/sync_templates.py
 tests/
 ├── base/                           # Base fixture and inner-CI configuration
-└── webapp/                         # Webapp fixture and inner-CI configuration
+└── web/                            # Web fixture and inner-CI configuration
 docs/
 pyproject.toml
 Makefile
@@ -97,15 +97,15 @@ The base template prompts for:
 | `ci_github`          | If `yes`, generate GitHub CI and Dependabot configuration           |
 | `ci_gitlab`          | If `yes`, generate `.gitlab-ci.yml` with test/lint/docs jobs         |
 
-## Webapp workspace
+## Web workspace
 
 ```bash
-cookiecutter gh:Alexxios/template --directory src/webapp
+cookiecutter gh:Alexxios/template --directory src/web
 # Or locally:
-cookiecutter . --directory src/webapp
+cookiecutter . --directory src/web
 ```
 
-The webapp template provides empty `services/`, `libs/`, and integration `tests/`
+The web template provides empty `services/`, `libs/`, and integration `tests/`
 directories in a Python 3.14 uv workspace. It keeps the tooling seed's Makefile,
 LICENSE, pre-commit, MkDocs, pytest/coverage, and Ruff configuration. Infrastructure
 starters live in `infra/` (empty Compose files, `k8s/`, and `nginx/`).
@@ -130,9 +130,12 @@ placeholder entry point; choose the framework and implement startup yourself.
 An empty workspace has no tests, so scaffold members or add integration tests
 before running `make check`.
 
-GitHub CI is enabled by default, and Sourcecraft CI is available with
-`ci_sourcecraft=yes`. Both run the same Make targets and retain test reports.
-The webapp template does not use the base-only `package_name`, `init_git`, or
+GitHub CI is enabled by default. Pull requests use `pull-request.yml` and retain
+`check-reports`. The repository's default branch uses `ci.yml` and also uploads a
+`github-pages` artifact containing the MkDocs site and test reports. The workflow
+reads the default branch from the repository settings. Sourcecraft CI remains
+available with `ci_sourcecraft=yes` and runs the same checks.
+The web template does not use the base-only `package_name`, `init_git`, or
 `ci_gitlab` settings.
 
 ## Create a new template
@@ -199,10 +202,13 @@ checks. The default fixture makes a tooling-only project testable without adding
 application code to the project seed.
 
 `validation.toml` selects GitHub push/PR workflow files and artifacts, Pages
-reporting, and Sourcecraft workflow/task/cube artifacts. The base package keeps
-its separate PR workflow and Pages reports; webapp uses `ci.yml` and test reports
-for both events. The shared sources live under `templates/validation/`. Edit those
-sources or the package configuration, then sync; generated workflow edits are
+reporting, and Sourcecraft workflow/task/cube artifacts. Both base and web use
+`ci.yml` on the default branch and `pull-request.yml` for PRs. The
+`push_artifact_format` setting tells validation to extract a Pages archive
+(`pages`) or collect ordinary report files (`directory`). `publish_pages` enables
+Pages setup and outer deployment; only base enables it. Web uploads and validates
+its Pages artifact without deploying it. Edit the shared sources in
+`templates/validation/` or the package configuration, then sync; generated workflow edits are
 replaced on the next sync.
 
 ## Develop this repository
@@ -265,7 +271,7 @@ follow the GitHub repository.
 
 `.github/workflows/ci.yml` checks the metatemplate's tests, lint, docs, and generated
 file consistency. Each template has a separate generated workflow:
-`validate-base.yml`, `validate-webapp.yml`, and one for every newly registered
+`validate-base.yml`, `validate-web.yml`, and one for every newly registered
 template. Each runs on pushes to `main`/`master`, pull requests, and manual dispatch.
 
 Each template's validation workflow:
@@ -278,8 +284,9 @@ Each template's validation workflow:
    repository, including after inner CI failures.
 
 An outer pull request opens a pull request in the generated repository. An outer
-push or manual run pushes to its `main` branch. The webapp fixture exercises two
-services, two libraries, and cross-member imports; its inner CI runs `make check`.
+push or manual run pushes to its `main` branch. The web fixture exercises two
+services, two libraries, and cross-member imports; its inner CI checks lint, tests,
+and documentation.
 Sourcecraft uses the same fixture interface and generates a `validate-<template>`
 workflow for each template, retaining its configured inner artifacts.
 
@@ -287,7 +294,9 @@ The base template retains its existing reports. Its pull-request workflow runs
 tests, coverage, Ruff, and the docs PDF build. On pushes, its inner CI also profiles
 CPU and memory, builds Allure, and publishes reports. The outer `validate-base.yml`
 workflow republishes the downloaded reports to this repository's Pages site on
-`main`/`master`. The webapp workflow retains JUnit and coverage artifacts.
+`main`/`master`. Web default-branch CI uploads a Pages artifact with its MkDocs site
+and test reports; outer validation extracts and retains it in `generated-web-ci`.
+Web PR CI retains JUnit and coverage as `check-reports`.
 
 ### Integration credentials
 

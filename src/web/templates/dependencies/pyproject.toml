@@ -1,6 +1,6 @@
 # Plain dependency manifest for Dependabot; imported by the generated template.
 [project]
-name = "template-webapp-tooling"
+name = "template-web-tooling"
 version = "0.1.0"
 
 # {% macro project_tooling() %}

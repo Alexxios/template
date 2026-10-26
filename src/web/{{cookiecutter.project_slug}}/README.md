@@ -37,5 +37,11 @@ The service entry point raises `NotImplementedError` until implemented.
 See [infra/README.md](infra/README.md) for the empty Compose configuration and
 container build instructions. `infra/k8s/` and `infra/nginx/` are placeholders.
 
-GitHub CI and optional Sourcecraft CI run `make bootstrap` and `make check` and
-retain JUnit and coverage reports. Pre-commit, MkDocs, and LICENSE are included.
+GitHub uses `pull-request.yml` for PR checks and `ci.yml` for the repository's
+default branch. Both run the lint, test, and documentation checks and retain
+JUnit and coverage reports as `check-reports`. Default-branch CI also uploads a
+`github-pages` artifact containing the documentation site and test reports under
+`reports/`. It uploads the artifact without deploying a Pages site.
+
+Optional Sourcecraft CI runs `make bootstrap` and `make check` and retains JUnit
+and coverage reports. Pre-commit, MkDocs, and LICENSE are included.

@@ -25,3 +25,14 @@ Each member uses a `src/` layout and has its own metadata and tests. Add runtime
 dependencies with `uv add --package <name> <dependency>` and commit `uv.lock`.
 The root package is virtual; tooling is configured in its `pyproject.toml`.
 Service entry points are placeholders to replace with your application startup.
+
+## CI reports
+
+GitHub pull requests run `pull-request.yml` and retain `check-reports`. The default
+branch runs `ci.yml` and also uploads `github-pages`, a Pages artifact containing
+this documentation site and the test reports. After extracting its `artifact.tar`,
+open `index.html` for the docs or `reports/coverage/index.html` for coverage.
+Raw reports are at `reports/junit.xml` and `reports/coverage.xml`.
+
+The default branch is read from the repository settings, so renaming it does not
+require editing the workflow. Artifact upload does not deploy a Pages site.

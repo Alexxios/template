@@ -21,12 +21,12 @@ templates/
             └── docs/
 src/
 ├── base/
-└── webapp/
+└── web/
 scripts/new_template.py
 scripts/sync_templates.py
 tests/
 ├── base/
-└── webapp/
+└── web/
 docs/
 pyproject.toml
 Makefile
@@ -47,7 +47,7 @@ author. The only content directory it supplies is the MkDocs starter `docs/`.
 
 The existing `src/base` template still provides a Python `src/` layout, package
 helper, tests, and its original tooling. New templates do not copy that layout.
-The `src/webapp` template uses an empty uv workspace with `services/`, `libs/`,
+The `src/web` template uses an empty uv workspace with `services/`, `libs/`,
 package scaffolding helpers, infrastructure starters, and integration tests.
 
 Use `make bootstrap` to install repository tooling, `make check` to run all

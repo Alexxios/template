@@ -89,7 +89,7 @@ jobs:
               --title "Validate generated project" \
               --body "Integration check for $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           else
-{% if github.pages %}
+{% if github.publish_pages %}
             gh api --method POST "repos/$GH_REPO/pages" -f build_type=workflow
 {% endif %}
             git push origin HEAD:refs/heads/main
@@ -134,7 +134,7 @@ jobs:
             || echo "::warning::Could not download the generated CI log."
           gh run download "$RUN_ID" --repo "$GH_REPO" --name "$INNER_ARTIFACT" \
             --dir "$RUNNER_TEMP/inner-reports"
-{% if github.pages %}
+{% if github.push_artifact_format == "pages" %}
           if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
             tar -xf "$RUNNER_TEMP/inner-reports/artifact.tar" -C generated-ci/reports
             test -s generated-ci/reports/index.html
@@ -159,7 +159,7 @@ jobs:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: gh repo delete "$GH_REPO" --yes
 
-{% if github.pages %}  publish-reports:
+{% if github.publish_pages %}  publish-reports:
     needs: validate
     if: >-
       ${{ !cancelled() && github.event_name != 'pull_request' &&

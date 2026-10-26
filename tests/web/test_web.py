@@ -18,10 +18,10 @@ def project(tmp_path, cookiecutter_config):
     return Path(
         cookiecutter(
             str(ROOT),
-            directory="src/webapp",
+            directory="src/web",
             no_input=True,
             output_dir=str(tmp_path),
-            extra_context={"project_name": "Webapp Example", "ci_sourcecraft": "yes"},
+            extra_context={"project_name": "Web Example", "ci_sourcecraft": "yes"},
         )
     )
 
@@ -65,7 +65,7 @@ def test_nested_generators_create_independent_members_from_any_directory(project
         assert not (member / "tests/__init__.py").exists()
 
 
-@pytest.mark.parametrize("name", ["../outside", "bad-name", "Bad Name", "class", "webapp_example"])
+@pytest.mark.parametrize("name", ["../outside", "bad-name", "Bad Name", "class", "web_example"])
 def test_invalid_or_root_colliding_names_leave_workspace_empty(project, name):
     result = generate(project, "service", name)
     assert result.returncode != 0
@@ -94,7 +94,7 @@ def test_failed_member_render_cleans_up_partial_output(project):
 
 def test_inner_ci_fixture_scaffolds_workspace_dependencies(project):
     subprocess.run(
-        [sys.executable, "-m", "tests.webapp", "scaffold", str(project)],
+        [sys.executable, "-m", "tests.web", "scaffold", str(project)],
         cwd=ROOT,
         check=True,
         capture_output=True,
@@ -112,11 +112,11 @@ def test_inner_ci_fixture_scaffolds_workspace_dependencies(project):
 
 
 @pytest.mark.parametrize("github,sourcecraft", [("yes", "no"), ("no", "yes"), ("no", "no")])
-def test_webapp_ci_selection(tmp_path, cookiecutter_config, github, sourcecraft):
+def test_web_ci_selection(tmp_path, cookiecutter_config, github, sourcecraft):
     generated = Path(
         cookiecutter(
             str(ROOT),
-            directory="src/webapp",
+            directory="src/web",
             no_input=True,
             output_dir=str(tmp_path),
             extra_context={"ci_github": github, "ci_sourcecraft": sourcecraft},
@@ -127,3 +127,28 @@ def test_webapp_ci_selection(tmp_path, cookiecutter_config, github, sourcecraft)
     # The nested generator still contains its own context after the first render.
     context = json.loads((generated / "templates/member/cookiecutter.json").read_text())
     assert context["package_name"] == "new_package"
+
+
+def test_web_separates_default_branch_pages_from_pull_request_checks(project):
+    workflows = project / ".github/workflows"
+    default = yaml.load((workflows / "ci.yml").read_text(), Loader=yaml.BaseLoader)
+    pull_request = yaml.load((workflows / "pull-request.yml").read_text(), Loader=yaml.BaseLoader)
+    assert set(default["on"]) == {"push", "workflow_dispatch"}
+    assert set(pull_request["on"]) == {"pull_request"}
+    checks = default["jobs"]["checks"]
+    assert "github.event.repository.default_branch" in checks["if"]
+    assert "github.ref == format('refs/heads/{0}'" in checks["if"]
+    steps = checks["steps"]
+    pages = next(
+        step for step in steps if step.get("uses", "").startswith("actions/upload-pages-artifact@")
+    )
+    assert pages["with"]["path"] == "site/"
+    assert "steps.docs.outcome == 'success'" in pages["if"]
+    docs = next(step for step in steps if step.get("id") == "docs")
+    # Documentation and report upload must still run after a test failure.
+    assert "!cancelled()" in docs["if"]
+    assert "steps.tools.outcome == 'success'" in docs["if"]
+    assert "cp -R reports/. site/reports/" in docs["run"]
+    pr_steps = pull_request["jobs"]["checks"]["steps"]
+    assert any(step.get("with", {}).get("name") == "check-reports" for step in pr_steps)
+    assert not any("pages" in step.get("uses", "") for step in pr_steps)

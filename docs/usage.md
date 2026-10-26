@@ -5,14 +5,14 @@
 ```bash
 cookiecutter gh:Alexxios/template --directory src/base
 # Or an empty service/library workspace:
-cookiecutter gh:Alexxios/template --directory src/webapp
+cookiecutter gh:Alexxios/template --directory src/web
 # From a local checkout:
 cookiecutter . --directory src/base
 ```
 
-## Webapp workspace
+## Web workspace
 
-The `webapp` template starts with empty `services/`, `libs/`, and `tests/` directories.
+The `web` template starts with empty `services/`, `libs/`, and `tests/` directories.
 It provides per-member package generators and an empty infrastructure starter.
 It retains the Makefile, LICENSE, pre-commit, MkDocs, and Python tooling.
 
@@ -38,8 +38,12 @@ use a local library path to declare a workspace dependency. Build containers fro
 the workspace root after configuring services in `infra/docker-compose.yml`.
 The generated infrastructure README contains an example.
 
-GitHub CI defaults to enabled; select `ci_sourcecraft=yes` for Sourcecraft.
-Both run `make check` and retain JUnit and coverage reports.
+GitHub CI defaults to enabled. `pull-request.yml` handles PR checks and retains
+`check-reports`. `ci.yml` checks the repository's default branch and also uploads
+`github-pages`, containing the documentation site and test reports under
+`reports/`. It follows the default branch in the repository settings and uploads
+the Pages artifact without deploying a site. Select `ci_sourcecraft=yes` for
+Sourcecraft, which runs `make check` and retains JUnit and coverage reports.
 
 ## Create a template
 
@@ -58,6 +62,9 @@ Customize the project payload and `cookiecutter.json` as before. In the test
 package, edit `scaffold.py` to define `scaffold(project: Path)`, adding example code
 and tests for the generated project's inner CI. Edit `validation.toml` to configure
 Cookiecutter context, inner workflow names, artifact names, and Sourcecraft cubes.
+Use `push_artifact_format = "pages"` for a Pages archive or `"directory"` for
+ordinary reports. `publish_pages` controls Pages setup and outer deployment
+separately; web collects its Pages archive with deployment disabled.
 The generated `__main__.py` delegates to the common CLI in `tests/support.py`:
 
 ```bash
