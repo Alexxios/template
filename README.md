@@ -1,10 +1,33 @@
-# Python Project Template
+# Python Template Collection
 
 [![CI](https://github.com/Alexxios/template/actions/workflows/ci.yml/badge.svg)](https://github.com/Alexxios/template/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/badge/dynamic/xml?url=https%3A%2F%2Falexxios.github.io%2Ftemplate%2Fjunit.xml&query=%2Ftestsuites%2Ftestsuite%2F%40tests&label=tests&color=blue)](https://alexxios.github.io/template/)
 [![Coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Falexxios.github.io%2Ftemplate%2Fcoverage.json&query=%24.totals.percent_covered_display&label=coverage&suffix=%25&color=blue)](https://alexxios.github.io/template/coverage/)
 
-A [Cookiecutter](https://www.cookiecutter.io/) template for modern Python projects, pre-wired with:
+A collection of [Cookiecutter](https://www.cookiecutter.io/) templates under `src/`.
+The repository also acts as a metatemplate: `scripts/new_template.py` creates a
+new selectable template from an existing starter.
+
+```text
+src/
+└── base/
+    ├── cookiecutter.json
+    ├── hooks/
+    ├── templates/dependencies/pyproject.toml
+    └── {{cookiecutter.project_slug}}/
+scripts/
+├── new_template.py
+└── sourcecraft_repo.py
+tests/
+docs/
+pyproject.toml
+tox.ini
+.pre-commit-config.yaml
+mkdocs.yml
+LICENSE
+```
+
+The `base` template retains the existing Python project tooling:
 
 - **uv** for dependency management and packaging
 - **mashumaro** + **orjson** for serialization
@@ -31,10 +54,10 @@ Generate a project from this template:
 
 ```bash
 # from a local checkout
-cookiecutter /path/to/this/template
+cookiecutter /path/to/this/template --directory src/base
 
 # or from GitHub
-cookiecutter gh:Alexxios/template
+cookiecutter gh:Alexxios/template --directory src/base
 ```
 
 You will be prompted for:
@@ -45,7 +68,6 @@ You will be prompted for:
 | `project_slug`       | Directory name (auto from `project_name`, override if needed)        |
 | `package_name`       | Importable Python package name (auto from slug)                      |
 | `description`        | Short project description                                            |
-| `designation`        | Single choice: Web (default) or None; tech stacks will be added later |
 | `author_name`        | Author name for `pyproject.toml`                                     |
 | `author_email`       | Author email for `pyproject.toml`                                    |
 | `version`            | Initial version                                                      |
@@ -56,6 +78,50 @@ You will be prompted for:
 | `ci_sourcecraft`     | If `yes`, generate `.sourcecraft/ci.yaml` with test/lint/docs flows  |
 | `ci_github`          | If `yes`, generate GitHub CI and Dependabot configuration           |
 | `ci_gitlab`          | If `yes`, generate `.gitlab-ci.yml` with test/lint/docs jobs         |
+
+## Create a new template
+
+```bash
+uv sync --extra dev --extra docs
+uv run python scripts/new_template.py python-lib
+cookiecutter . --directory src/python-lib
+```
+
+This copies `src/base/` into `src/python-lib/`, including its hooks, dependency
+manifest, nested package helper, and project tooling. Cookiecutter expressions
+stay unrendered, and existing templates are never overwritten. Customize the new
+template's `cookiecutter.json` and `{{cookiecutter.project_slug}}/` directory.
+Use `--from another-template` to copy a different starter.
+
+After committing and pushing the new template, projects can use it directly:
+
+```bash
+cookiecutter gh:Alexxios/template --directory src/python-lib
+```
+
+Templates are independent copies: edits to `base` do not propagate to existing
+templates. Choose the template through `--directory`; the former unused
+`designation` prompt has been removed.
+
+## Develop this repository
+
+The repository follows the base layout with `src/`, `tests/`, `scripts/`, and
+`docs/`, plus its own uv, pytest, Ruff, pre-commit, tox, and MkDocs configuration.
+It requires Python 3.14. It is a tooling project, so uv does not install `src/`
+as a Python package. Repository and CI dependencies are declared in `pyproject.toml`.
+
+```bash
+uv sync --extra dev --extra docs
+uv run pre-commit install
+uv run pytest
+uv run tox
+uv run mkdocs serve
+```
+
+Root checks validate the scaffolding helper and render every template under
+`src/`. Raw template payloads are excluded from repository linting; generated
+projects retain their own checks. The existing Sourcecraft API helper is kept
+unchanged and is outside the new Ruff checks.
 
 ## After generation
 
@@ -95,9 +161,10 @@ git push github --tags
 ## GitHub CI and reports
 
 The outer workflow runs on pushes to `main`/`master`, pull requests, and manual
-dispatches. It validates the generated project's own GitHub CI end to end:
+dispatches. A separate job checks this repository's tests, lint, and docs.
+The integration job validates the base project's own GitHub CI end to end:
 
-1. Generate a Python 3.14 project and scaffold three additional packages.
+1. Generate a Python 3.14 project with `--directory src/base` and scaffold three additional packages.
 2. Create a temporary GitHub repository and push the generated project.
 3. Trigger and wait for its own workflow, matching the workflow, event, branch,
    and generated commit. A failed inner workflow fails the outer workflow.
@@ -172,9 +239,10 @@ within a profiling run.
 
 Dependabot checks weekly and opens grouped update pull requests on GitHub.
 The template repository's `.github/dependabot.yml` covers its own Actions and
-CI tools (`requirements-ci.txt`, using the uv ecosystem), plus the template's
-Actions, Python dependencies (`templates/dependencies/pyproject.toml`, also using uv),
-Allure CLI (`{{cookiecutter.project_slug}}/.github/package.json`, using npm), and
+repository and CI tools (`pyproject.toml`, using uv),
+plus each template's
+Actions, Python dependencies (`src/*/templates/dependencies/pyproject.toml`, also using uv),
+Allure CLI (`src/*/{{cookiecutter.project_slug}}/.github/package.json`, using npm), and
 pre-commit hooks. The workflow directory rules cover both generated workflows,
 including `pull-request.yml`.
 
@@ -185,7 +253,7 @@ The reporting workflow installs the Allure version declared in `.github/package.
 Python updates use `versioning-strategy: increase` so lower bounds such as `ruff>=0.7.0` are updated
 even when the newest release already satisfies the existing range.
 
-The shared Python dependency manifest is valid TOML that Dependabot can update.
+Each template's Python dependency manifest is valid TOML that Dependabot can update.
 Cookiecutter imports its dependency sections into each generated `pyproject.toml`.
 This updates the template's runtime, development, documentation, and build dependencies
 from the outer repository. Generated projects contain ordinary dependency lists

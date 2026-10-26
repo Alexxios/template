@@ -1,12 +1,29 @@
 on:
   push:
-    - workflows: [test-template-generation]
+    - workflows: [check-repository, test-template-generation]
       filter:
         branches: ["main", "master"]
   pull_request:
-    - workflows: [test-template-generation]
+    - workflows: [check-repository, test-template-generation]
 
 workflows:
+  check-repository:
+    runs_on: serverless
+    tasks:
+      - name: check
+        cubes:
+          - name: test-lint-docs
+            image: docker.io/library/python:3.14-slim
+            script:
+              - |
+                set -eu
+                python -m pip install uv
+                uv sync --extra dev --extra docs
+                uv run pytest
+                uv run ruff check scripts/new_template.py tests
+                uv run ruff format --check scripts/new_template.py tests
+                uv run mkdocs build --strict
+
   test-template-generation:
     runs_on: serverless # Experimental mode. For other options, see: https://sourcecraft.dev/portal/docs/ru/sourcecraft/ci-cd-ref/workflows
     tasks:
@@ -49,8 +66,8 @@ workflows:
 
                 # 1. Tooling
                 apt-get update && apt-get install -y --no-install-recommends git
-                python -m pip install --upgrade pip
-                pip install -r requirements-ci.txt
+                python -m pip install uv
+                uv sync --extra dev
 
                 # Configure git globally so cookiecutter's init_git hook can commit.
                 git config --global user.name "CI Bot"
@@ -60,7 +77,8 @@ workflows:
                 #    init_git=yes lets the post_gen hook handle git init + add + commit.
                 TEMPLATE_DIR="$(pwd)"
                 GEN_ROOT="$(mktemp -d)"
-                cookiecutter --no-input "$TEMPLATE_DIR" \
+                uv run cookiecutter --no-input "$TEMPLATE_DIR" \
+                  --directory src/base \
                   project_name="CI Test Project" \
                   python_version=3.14 \
                   python_min_version=3.14 \

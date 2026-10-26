@@ -10,6 +10,29 @@ permissions:
   contents: read
 
 jobs:
+  check-repository:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Install repository tooling
+        run: |
+          python -m pip install uv
+          uv sync --extra dev --extra docs
+      - name: Test metatemplate and render templates
+        run: uv run pytest
+      - name: Lint and check formatting
+        run: |
+          uv run ruff check scripts/new_template.py tests
+          uv run ruff format --check scripts/new_template.py tests
+      - name: Build repository documentation
+        run: uv run mkdocs build --strict
+
   test-template-generation:
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -33,14 +56,17 @@ jobs:
             exit 1
           fi
       - name: Install tooling
-        run: python -m pip install -r requirements-ci.txt
+        run: |
+          python -m pip install uv
+          uv sync --extra dev
       - name: Generate and validate project
         run: |
           PROJECT_DIR="$RUNNER_TEMP/template-generation/ci-test-project"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
           git config --global user.name "CI Bot"
           git config --global user.email "ci@users.noreply.github.com"
-          cookiecutter --no-input "$GITHUB_WORKSPACE" \
+          uv run cookiecutter --no-input "$GITHUB_WORKSPACE" \
+            --directory src/base \
             project_name="CI Test Project" python_version=3.14 python_min_version=3.14 \
             ci_sourcecraft=no ci_github=yes ci_gitlab=no init_git=yes \
             --output-dir "$RUNNER_TEMP/template-generation"
@@ -58,7 +84,7 @@ jobs:
           git commit --amend -m "Initialize integration fixture [skip ci]"
           echo "BASE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
           for package in pkg_alpha pkg_beta pkg_gamma; do
-            python scripts/new_package.py --no-input "package_name=$package"
+            "$GITHUB_WORKSPACE/.venv/bin/python" scripts/new_package.py --no-input "package_name=$package"
           done
           for package in ci_test_project pkg_alpha pkg_beta pkg_gamma; do
             test -f "src/$package/__init__.py"

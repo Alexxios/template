@@ -14,7 +14,7 @@ updates:
   # Use directories globs to match the brace-wrapped Cookiecutter folder.
   - package-ecosystem: github-actions
     directories:
-      - "/*cookiecutter.project_slug*/.github/workflows"
+      - "/src/*/*cookiecutter.project_slug*/.github/workflows"
     schedule:
       interval: weekly
     groups:
@@ -24,7 +24,7 @@ updates:
   # Allure CLI used by the generated project's reporting workflow.
   - package-ecosystem: npm
     directories:
-      - "/*cookiecutter.project_slug*/.github"
+      - "/src/*/*cookiecutter.project_slug*/.github"
     schedule:
       interval: weekly
     versioning-strategy: increase
@@ -44,7 +44,8 @@ updates:
 
   # Shared versions used to render Python dependencies into generated projects.
   - package-ecosystem: uv
-    directory: /templates/dependencies
+    directories:
+      - "/src/*/templates/dependencies"
     schedule:
       interval: weekly
     versioning-strategy: increase
@@ -54,7 +55,8 @@ updates:
 
   - package-ecosystem: pre-commit
     directories:
-      - "/*cookiecutter.project_slug*"
+      - "/"
+      - "/src/*/*cookiecutter.project_slug*"
     schedule:
       interval: weekly
     groups:
