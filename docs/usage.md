@@ -13,7 +13,8 @@ cookiecutter . --directory src/base
 ## Web workspace
 
 The `web` template starts with empty `services/`, `libs/`, and `tests/` directories.
-It provides per-member package generators and an empty infrastructure starter.
+It provides per-member package generators and a Prometheus/Grafana Compose starter
+under `infra/`, with persistent storage and a provisioned Prometheus data source.
 It includes a justfile, LICENSE, pre-commit, MkDocs, and Python tooling.
 
 ```bash

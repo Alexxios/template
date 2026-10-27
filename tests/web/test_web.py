@@ -73,8 +73,10 @@ def test_workspace_starts_empty_with_tooling_and_infrastructure(project):
     assert "build-system" not in metadata
     for filename in ("check_workspace.py", "new_lib.py", "new_service.py"):
         assert not (project / "scripts" / filename).exists()
-    for filename in ("docker-compose.yml", "docker-compose.dev.yml"):
-        assert yaml.safe_load((project / "infra" / filename).read_text()) == {"services": {}}
+    infra = project / "infra"
+    compose = yaml.safe_load((infra / "docker-compose.yml").read_text())
+    assert set(compose["services"]) == {"prometheus", "grafana"}
+    assert yaml.safe_load((infra / "docker-compose.dev.yml").read_text()) == {"services": {}}
 
 
 def test_nested_generators_create_independent_members_from_any_directory(project):
@@ -271,10 +273,11 @@ def test_service_and_lib_templates_can_evolve_independently(project):
 def test_dependabot_covers_the_workspace_and_new_services(project):
     config = yaml.safe_load((project / ".github/dependabot.yml").read_text())
     updates = {item["package-ecosystem"]: item for item in config["updates"]}
-    assert set(updates) == {"github-actions", "uv", "pre-commit", "npm", "docker"}
+    assert set(updates) == {"github-actions", "uv", "pre-commit", "npm", "docker", "docker-compose"}
     assert updates["uv"]["directory"] == "/"
     assert updates["npm"]["directory"] == "/.github"
     assert "/services/*" in updates["docker"]["directories"]
+    assert updates["docker-compose"]["directory"] == "/infra"
     assert all(item["schedule"]["interval"] == "weekly" for item in updates.values())
 
 

@@ -110,7 +110,8 @@ cookiecutter . --directory src/web
 The web template provides empty `services/`, `libs/`, and integration `tests/`
 directories in a Python 3.14 uv workspace. It includes a justfile,
 LICENSE, pre-commit, MkDocs, pytest/coverage, and Ruff configuration. Infrastructure
-starters live in `infra/` (empty Compose files, `k8s/`, and `nginx/`).
+starters live in `infra/`: Prometheus and Grafana in Compose, plus `k8s/` and
+`nginx/` placeholders. Grafana's Prometheus data source is provisioned automatically.
 
 After generation:
 
@@ -433,14 +434,15 @@ source and generated files stay consistent.
 The template repository's `.github/dependabot.yml` covers its own Actions and
 repository tooling (`pyproject.toml`, using uv), plus each template's Actions,
 Python dependencies (`src/*/templates/dependencies/pyproject.toml`, also using uv),
-Allure CLI (`src/*/{{cookiecutter.project_slug}}/.github/package.json`, using npm), and
-pre-commit hooks. The workflow directory rules cover both generated workflows,
+Allure CLI (`src/*/{{cookiecutter.project_slug}}/.github/package.json`, using npm),
+web infrastructure images (using docker-compose), and pre-commit hooks.
+The workflow directory rules cover both generated workflows,
 including `pull-request.yml`. The tooling seed in `templates/cookiecutter/`
 has matching Actions, dependency-manifest, and pre-commit update rules.
 
 Base and metatemplate projects generated with `ci_github=yes`, and all web projects,
 include `.github/dependabot.yml`. Metatemplate projects cover Actions, uv, and hooks;
-web adds Allure and service container images. Base projects retain their existing setup.
+web adds Allure, service images, and infrastructure images. Base projects retain their existing setup.
 They receive weekly updates for GitHub Actions, Python dependencies through uv
 (including `uv.lock` when committed), Allure CLI through npm, and pre-commit hooks.
 The reporting workflow installs the Allure version declared in `.github/package.json`.

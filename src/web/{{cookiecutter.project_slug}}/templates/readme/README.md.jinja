@@ -46,7 +46,8 @@ Shared tooling uses root dependency groups. Add runtime dependencies with
 relationships. Only declared dependencies are installed for member tests.
 The integration environment installs all members. Commit the shared `uv.lock`.
 `just format`, `just docs`, `just serve`, and `just reports` are also available.
-See [infra/README.md](infra/README.md) for the empty infrastructure starters.
+See [infra/README.md](infra/README.md) to start Prometheus and Grafana and add
+application metrics targets.
 
 ## GitHub setup and reports
 
@@ -79,5 +80,5 @@ run** before merging. No repository name or URL needs to be entered into
 Cookiecutter. Badge endpoints must be publicly accessible to Shields.
 
 Dependabot updates Python dependencies, Actions, pre-commit hooks, Allure, and
-service container images weekly. See [the report guide](docs/ci-reports.md) for
+service and infrastructure container images weekly. See [the report guide](docs/ci-reports.md) for
 Pages layout, setup, and history details.
