@@ -17,9 +17,9 @@ def scaffold(project: Path) -> None:
         ("lib", "storage"),
     ):
         subprocess.run(
-            ["make", f"new-{kind}", f"PYTHON={shlex.quote(sys.executable)}"],
+            [str(Path(sys.prefix) / "bin/just"), f"new-{kind}", name],
             cwd=project,
-            env={**os.environ, "NAME": name, "DESCRIPTION": ""},
+            env={**os.environ, "PYTHON": shlex.quote(sys.executable)},
             check=True,
         )
 

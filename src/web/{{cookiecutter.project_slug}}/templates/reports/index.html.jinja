@@ -1,0 +1,17 @@
+{% raw %}<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workspace reports</title>
+<style>body{font:16px/1.6 system-ui,sans-serif;max-width:70rem;margin:3rem auto;padding:0 1rem}table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:.6rem;border-bottom:1px solid #ccc}a{color:#185abc}</style>
+<h1>Workspace reports</h1>
+<p><a href="../">Documentation</a></p>
+<p>Each member has its own checks, test runner, and source coverage. Integration tests run separately.</p>
+<table>
+<tr><th>Scope</th><th>Lint</th><th>Tests</th><th>Coverage</th></tr>
+{% for member in members %}
+<tr><td><a href="{{ member.path }}/">{{ member.path }}</a></td><td>{{ member.badges.lint.message }}</td><td>{{ member.badges.tests.message }}</td><td>{{ member.badges.coverage.message }}</td></tr>
+{% endfor %}
+</table>
+</html>
+{% endraw %}

@@ -1,6 +1,5 @@
 {
   "package_name": "new_lib",
   "description": "A workspace lib",
-  "version": "{{cookiecutter.version}}",
-  "github_repository": {{ cookiecutter.github_repository | tojson }}
+  "version": "{{cookiecutter.version}}"
 }

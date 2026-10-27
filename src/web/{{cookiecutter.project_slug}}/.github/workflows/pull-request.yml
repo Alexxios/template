@@ -1,4 +1,4 @@
-name: Pull request checks
+{% raw %}name: Pull request checks
 
 on:
   pull_request:
@@ -8,60 +8,5 @@ permissions:
 
 jobs:
   checks:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "{{cookiecutter.python_version}}"
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "24"
-          package-manager-cache: false
-      - name: Install tools
-        id: tools
-        run: |
-          python -m pip install uv
-          make bootstrap
-      - name: Check generated files
-        run: make check-generated
-      - name: Lint
-        id: lint
-        if: "{% raw %}${{ !cancelled() && steps.tools.outcome == 'success' }}{% endraw %}"
-        run: |
-          mkdir -p reports
-          uv run --all-packages ruff check . --output-format=json --output-file=reports/ruff.json
-      - name: Check formatting
-        id: formatting
-        if: "{% raw %}${{ !cancelled() && steps.tools.outcome == 'success' }}{% endraw %}"
-        run: uv run --all-packages ruff format --check --output-format=json . > reports/ruff-format.json
-      - name: Test with coverage and Allure results
-        id: tests
-        if: "{% raw %}${{ !cancelled() && steps.tools.outcome == 'success' }}{% endraw %}"
-        run: make test
-      - name: Build member reports and badges
-        id: reports
-        if: "{% raw %}${{ !cancelled() && steps.tools.outcome == 'success' }}{% endraw %}"
-        env:
-          LINT_OUTCOME: "{% raw %}${{ steps.lint.outcome }}{% endraw %}"
-          FORMAT_OUTCOME: "{% raw %}${{ steps.formatting.outcome }}{% endraw %}"
-        run: uv run --all-packages python scripts/build_reports.py
-      - name: Build Allure report
-        id: allure
-        if: "{% raw %}${{ !cancelled() && steps.tools.outcome == 'success' }}{% endraw %}"
-        run: |
-          npm install --prefix .github --no-package-lock
-          .github/node_modules/.bin/allure awesome reports/allure-results --single-file --output reports/allure
-      - name: Build documentation
-        if: "{% raw %}${{ !cancelled() && steps.tools.outcome == 'success' }}{% endraw %}"
-        run: make docs
-      - name: Retain test reports
-        if: "{% raw %}${{ always() }}{% endraw %}"
-        uses: actions/upload-artifact@v7
-        with:
-          name: check-reports
-          path: reports/
-          if-no-files-found: warn
+    uses: ./.github/workflows/checks.yml
+{% endraw %}

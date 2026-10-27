@@ -3,34 +3,16 @@
 from __future__ import annotations
 
 import argparse
-import re
 import tempfile
 import tomllib
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, TemplateError
-
-ROOT = Path(__file__).resolve().parents[1]
-
-
-def members(root: Path = ROOT) -> list[Path]:
-    return [
-        path.parent
-        for group in ("services", "libs")
-        for path in sorted((root / group).glob("*/pyproject.toml"))
-        if not path.parent.name.startswith(".")
-    ]
+from workspace import ROOT, members
 
 
 def context(root: Path = ROOT) -> dict:
     config = tomllib.loads((root / "pyproject.toml").read_text())
-    repository = config["tool"]["codegen"]["github_repository"]
-    if not re.fullmatch(r"[\w.-]+/[\w.-]+", repository):
-        raise ValueError("tool.codegen.github_repository must be a GitHub owner/repository")
-    owner, name = repository.split("/")
-    pages_url = f"https://{owner.lower()}.github.io"
-    if name.lower() != f"{owner.lower()}.github.io":
-        pages_url += f"/{name}"
     grouped = {"services": [], "libs": []}
     for member in members(root):
         grouped[member.parent.name].append(
@@ -38,8 +20,6 @@ def context(root: Path = ROOT) -> dict:
         )
     return {
         "project": config["project"],
-        "github_repository": repository,
-        "pages_url": pages_url,
         **grouped,
     }
 
@@ -76,7 +56,7 @@ def main() -> None:
     for path in changed:
         print(f"{'Out of date' if args.check else 'Generated'}: {path.relative_to(ROOT)}")
     if args.check and changed:
-        parser.exit(1, "Run make codegen and commit the generated README.\n")
+        parser.exit(1, "Run just codegen and commit the generated README.\n")
 
 
 if __name__ == "__main__":

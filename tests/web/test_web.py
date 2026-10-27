@@ -13,6 +13,7 @@ import yaml
 from cookiecutter.main import cookiecutter
 
 ROOT = Path(__file__).resolve().parents[2]
+JUST = str(Path(sys.prefix) / "bin/just")
 
 
 @pytest.fixture
@@ -25,24 +26,30 @@ def project(tmp_path, cookiecutter_config):
             output_dir=str(tmp_path),
             extra_context={
                 "project_name": "Web Example",
-                "github_repository": "example/web-example",
             },
         )
     )
 
 
-def run_make(project, target, *, name="", description=""):
+def run_just(project, recipe, *args, env=None):
     sources = [
         str(path) for group in ("services", "libs") for path in (project / group).glob("*/src")
     ]
     return subprocess.run(
-        ["make", "-C", str(project), f"PYTHON={shlex.quote(sys.executable)}", target],
+        [
+            JUST,
+            "--justfile",
+            str(project / "justfile"),
+            recipe,
+            *args,
+        ],
         cwd=project.parent,
         env={
             **os.environ,
-            "NAME": name,
-            "DESCRIPTION": description,
+            "PYTHON": shlex.quote(sys.executable),
+            "SCOPE_PYTHON": shlex.quote(sys.executable),
             "PYTHONPATH": os.pathsep.join(sources),
+            **(env or {}),
         },
         capture_output=True,
         text=True,
@@ -51,14 +58,15 @@ def run_make(project, target, *, name="", description=""):
 
 
 def generate(project, kind, name, *, description=""):
-    return run_make(project, f"new-{kind}", name=name, description=description)
+    return run_just(project, f"new-{kind}", name, description)
 
 
 def test_workspace_starts_empty_with_tooling_and_infrastructure(project):
     for directory in ("services", "libs", "tests"):
         assert [entry.name for entry in (project / directory).iterdir()] == [".gitkeep"]
-    for filename in ("LICENSE", ".pre-commit-config.yaml", "mkdocs.yml", "Makefile"):
+    for filename in ("LICENSE", ".pre-commit-config.yaml", "mkdocs.yml", "justfile"):
         assert (project / filename).is_file()
+    assert not (project / "Makefile").exists()
     metadata = tomllib.loads((project / "pyproject.toml").read_text())
     assert not metadata["tool"]["uv"]["package"]
     assert metadata["tool"]["uv"]["workspace"]["members"] == ["services/*", "libs/*"]
@@ -70,19 +78,21 @@ def test_workspace_starts_empty_with_tooling_and_infrastructure(project):
 
 
 def test_nested_generators_create_independent_members_from_any_directory(project):
+    description = """Text with "quotes", 'quotes', $(touch injected), and `touch injected`"""
     for kind, group, name in (("service", "services", "billing_api"), ("lib", "libs", "common")):
-        result = generate(project, kind, name, description='Text with "quotes"')
+        result = generate(project, kind, name, description=description)
         assert result.returncode == 0, result.stdout + result.stderr
         member = project / group / name
         metadata = tomllib.loads((member / "pyproject.toml").read_text())
         assert metadata["project"]["name"] == name
-        assert metadata["project"]["description"] == 'Text with "quotes"'
+        assert metadata["project"]["description"] == description
         assert metadata["build-system"]["build-backend"] == "setuptools.build_meta"
         assert (member / f"src/{name}/py.typed").is_file()
         assert (member / "tests/test_smoke.py").is_file()
         assert (member / "Dockerfile").exists() == (kind == "service")
         assert (member / f"src/{name}/main.py").exists() == (kind == "service")
         assert not (member / "tests/__init__.py").exists()
+    assert not (project / "injected").exists()
 
 
 @pytest.mark.parametrize("name", ["../outside", "bad-name", "Bad Name", "class", "web_example"])
@@ -135,18 +145,20 @@ def test_web_is_github_only_without_a_reports_url_setting(project):
     assert (project / ".github").is_dir()
     assert not (project / ".sourcecraft").exists()
     options = json.loads((ROOT / "src/web/cookiecutter.json").read_text())
-    assert not {"ci_github", "ci_sourcecraft", "reports_url"} & options.keys()
+    assert not {"ci_github", "ci_sourcecraft", "reports_url", "github_repository"} & options.keys()
     config = tomllib.loads((project / "pyproject.toml").read_text())
-    assert config["tool"]["codegen"] == {"github_repository": "example/web-example"}
+    assert "codegen" not in config["tool"]
+    assert not (project / ".github/pages.json").exists()
     # The nested generator still contains its own context after the first render.
     for kind in ("service", "lib"):
         context = json.loads((project / f"templates/{kind}/cookiecutter.json").read_text())
         assert context["package_name"] == f"new_{kind}"
         assert "_kind" not in context
         assert "reports_url" not in context
+        assert "_pages_url" not in context
     result = generate(project, "lib", "common")
     assert result.returncode == 0, result.stderr
-    assert "img.shields.io/endpoint?" in (project / "libs/common/README.md").read_text()
+    assert "not%20published" in (project / "libs/common/README.md").read_text()
 
 
 def test_web_rejects_sourcecraft_validation_before_rendering(tmp_path, cookiecutter_config):
@@ -163,68 +175,80 @@ def test_web_rejects_sourcecraft_validation_before_rendering(tmp_path, cookiecut
     assert not project.exists()
 
 
-def test_web_separates_default_branch_pages_from_pull_request_checks(project):
-    workflows = project / ".github/workflows"
-    default = yaml.load((workflows / "ci.yml").read_text(), Loader=yaml.BaseLoader)
-    pull_request = yaml.load((workflows / "pull-request.yml").read_text(), Loader=yaml.BaseLoader)
-    assert set(default["on"]) == {"push", "workflow_dispatch"}
-    assert set(pull_request["on"]) == {"pull_request"}
-    checks = default["jobs"]["checks"]
-    assert "github.event.repository.default_branch" in checks["if"]
-    assert "github.ref == format('refs/heads/{0}'" in checks["if"]
-    steps = checks["steps"]
-    pages = next(
-        step for step in steps if step.get("uses", "").startswith("actions/upload-pages-artifact@")
+def workflow(project, name):
+    return yaml.load(
+        (project / f".github/workflows/{name}.yml").read_text(), Loader=yaml.BaseLoader
     )
-    assert pages["with"]["path"] == "site/"
-    assert "steps.docs.outcome == 'success'" in pages["if"]
-    docs = next(step for step in steps if step.get("id") == "docs")
-    # Documentation and report upload must still run after a test failure.
-    assert "!cancelled()" in docs["if"]
-    assert "steps.tools.outcome == 'success'" in docs["if"]
-    assert "cp -R reports/. site/reports/" in docs["run"]
-    assert checks["outputs"]["pages-ready"] == "${{ steps.pages.outcome == 'success' }}"
-    assert default["concurrency"]["cancel-in-progress"] == "false"
+
+
+def test_ci_uses_independent_member_jobs_and_shared_checks(project):
+    default = workflow(project, "ci")
+    pr = workflow(project, "pull-request")
+    checks = workflow(project, "checks")
+    assert set(default["on"]) == {"push", "workflow_dispatch"}
+    assert "github.event.repository.default_branch" in default["jobs"]["checks"]["if"]
+    assert default["jobs"]["checks"]["with"]["publish"] == "true"
+    assert pr["jobs"]["checks"]["uses"] == default["jobs"]["checks"]["uses"]
+    assert checks["on"]["workflow_call"]["inputs"]["publish"]["default"] == "false"
+    matrix = checks["jobs"]["members"]
+    assert matrix["strategy"]["fail-fast"] == "false"
+    assert matrix["env"]["CHECK_SCOPE"] == "${{ matrix.path }}"
+    tests = next(step for step in matrix["steps"] if step.get("run") == 'just test "$CHECK_SCOPE"')
+    assert "!cancelled()" in tests["if"]
+    reports = checks["jobs"]["reports"]
+    assert "!cancelled()" in reports["if"]
+    assert "needs.discover.result == 'success'" in reports["if"]
     deploy = default["jobs"]["deploy"]
-    assert deploy["needs"] == "checks"
-    assert "!cancelled()" in deploy["if"]
     assert "needs.checks.outputs.pages-ready == 'true'" in deploy["if"]
     assert deploy["permissions"] == {"pages": "write", "id-token": "write"}
-    assert deploy["environment"]["name"] == "github-pages"
-    assert deploy["steps"][0]["uses"].startswith("actions/deploy-pages@")
-    pr_steps = pull_request["jobs"]["checks"]["steps"]
-    assert any(step.get("with", {}).get("name") == "check-reports" for step in pr_steps)
-    assert not any("pages" in step.get("uses", "") for step in pr_steps)
-    assert "deploy" not in pull_request["jobs"]
+    assert default["concurrency"]["queue"] == "max"
+    assert "deploy" not in pr["jobs"]
 
 
-def test_allure_history_is_restored_and_saved_only_on_the_default_branch(project):
-    workflow = yaml.safe_load((project / ".github/workflows/ci.yml").read_text())
-    steps = workflow["jobs"]["checks"]["steps"]
+def test_history_and_publication_are_only_enabled_on_default_branch(project):
+    steps = workflow(project, "checks")["jobs"]["reports"]["steps"]
     restore = next(step for step in steps if step.get("id") == "history")
-    assert restore["uses"].startswith("actions/cache/restore@")
-    assert restore["with"]["path"] == "reports/history.jsonl"
+    assert restore["with"]["path"] == ".allure-history/"
+    assert restore["if"] == "${{ inputs.publish }}"
     for key in ("github.ref_name", "github.run_id", "github.run_attempt"):
         assert key in restore["with"]["key"]
-    assert restore["with"]["restore-keys"] == "allure-history-${{ github.ref_name }}-"
-    allure = next(step for step in steps if step.get("id") == "allure")
-    assert "--history-path reports/history.jsonl" in allure["run"]
-    assert "--output reports/allure" in allure["run"]
-    assert "!cancelled()" in allure["if"]
-    save = next(step for step in steps if step.get("uses", "").startswith("actions/cache/save@"))
-    assert "steps.allure.outcome == 'success'" in save["if"]
-    assert save["with"]["key"] == "${{ steps.history.outputs.cache-primary-key }}"
-    for identifier in ("lint", "formatting", "tests", "reports"):
-        step = next(step for step in steps if step.get("id") == identifier)
-        assert "!cancelled()" in step["if"]
-    report = next(step for step in steps if step.get("id") == "reports")
-    assert report["env"]["LINT_OUTCOME"] == "${{ steps.lint.outcome }}"
-    assert report["env"]["FORMAT_OUTCOME"] == "${{ steps.formatting.outcome }}"
-    assert workflow["concurrency"]["queue"] == "max"
-    pr = (project / ".github/workflows/pull-request.yml").read_text()
-    assert "allure awesome reports/allure-results" in pr
-    for forbidden in ("history.jsonl", "cache/restore", "cache/save", "deploy-pages"):
-        assert forbidden not in pr
+    for step in steps:
+        if any(x in step.get("uses", "") for x in ("cache/save", "upload-pages-artifact")):
+            assert step["if"] == "${{ inputs.publish }}"
+    allure = next(step for step in steps if step.get("name") == "Build each scope's Allure report")
+    assert 'args+=(--history-path "$history")' in allure["run"]
+    assert ".allure-history/$member.jsonl" in allure["run"]
+    assert '--output "$output/allure"' in allure["run"]
+
+
+def test_bootstrap_pr_waits_for_publication_and_includes_templates_and_cleanup(project):
+    config = workflow(project, "bootstrap-badges")
+    assert set(config["on"]) == {"workflow_run"}
+    setup = config["jobs"]["setup"]
+    assert "github.event.repository.default_branch" in setup["if"]
+    assert "head_repository.full_name == github.repository" in setup["if"]
+    steps = setup["steps"]
+    assert '.conclusion == "success"' in steps[0]["run"]
+    bind = next(step for step in steps if step.get("id") == "bind")
+    assert 'gh api "repos/$GITHUB_REPOSITORY/pages"' in bind["run"]
+    assert "rm .github/workflows/bootstrap-badges.yml scripts/bind_badges.py" in bind["run"]
+    pr = steps[-1]
+    assert pr["with"]["branch"] == "automation/bootstrap-badges"
+    assert pr["with"]["token"] == "${{ github.token }}"
+    assert config["permissions"]["contents"] == "write"
+    assert config["permissions"]["pull-requests"] == "write"
+    assert "BOOTSTRAP_TOKEN" not in (project / ".github/workflows/bootstrap-badges.yml").read_text()
+    assert set(pr["with"]["add-paths"].splitlines()) == {
+        "README.md",
+        "services/*/README.md",
+        "libs/*/README.md",
+        "templates/service/*/README.md",
+        "templates/lib/*/README.md",
+        "templates/readme/header.md.jinja",
+        "scripts/bind_badges.py",
+        ".github/workflows/bootstrap-badges.yml",
+    }
+    assert "steps.bind.outcome == 'success'" in pr["if"]
 
 
 def test_service_and_lib_templates_can_evolve_independently(project):
@@ -242,3 +266,22 @@ def test_service_and_lib_templates_can_evolve_independently(project):
         assert result.returncode == 0, result.stderr
         group = "services" if kind == "service" else "libs"
         assert (project / group / f"my_{kind}/kind.txt").read_text() == kind
+
+
+def test_dependabot_covers_the_workspace_and_new_services(project):
+    config = yaml.safe_load((project / ".github/dependabot.yml").read_text())
+    updates = {item["package-ecosystem"]: item for item in config["updates"]}
+    assert set(updates) == {"github-actions", "uv", "pre-commit", "npm", "docker"}
+    assert updates["uv"]["directory"] == "/"
+    assert updates["npm"]["directory"] == "/.github"
+    assert "/services/*" in updates["docker"]["directories"]
+    assert all(item["schedule"]["interval"] == "weekly" for item in updates.values())
+
+
+def test_report_template_sources_are_not_ignored_by_git(project):
+    for name in ("index.html.jinja", "member.html.jinja"):
+        template = project / "templates/reports" / name
+        assert template.is_file()
+        source = ROOT / "src/web/{{cookiecutter.project_slug}}/templates/reports" / name
+        result = subprocess.run(["git", "check-ignore", "--quiet", str(source)], cwd=ROOT)
+        assert result.returncode == 1

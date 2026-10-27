@@ -1,0 +1,81 @@
+{% raw %}name: Set up README badge links
+
+on:
+  workflow_run:
+    workflows: [Default branch checks and Pages deployment]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+  pages: read
+
+concurrency:
+  group: bootstrap-badges
+  cancel-in-progress: false
+
+jobs:
+  setup:
+    if: >-
+      github.event.workflow_run.head_branch == github.event.repository.default_branch &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('["push", "workflow_dispatch"]'), github.event.workflow_run.event)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check that Pages was published
+        id: publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          deployed=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/jobs" --paginate \
+            --jq '.jobs[] | select(.name == "deploy" and .conclusion == "success") | .id')
+          if [ -n "$deployed" ]; then echo "ready=true" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/checkout@v7
+        if: ${{ steps.publication.outputs.ready == 'true' }}
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        if: ${{ steps.publication.outputs.ready == 'true' && hashFiles('.github/workflows/bootstrap-badges.yml') != '' }}
+        with:
+          python-version: "{% endraw %}{{cookiecutter.python_version}}{% raw %}"
+      - name: Bind README and template links and remove setup files
+        id: bind
+        if: ${{ steps.publication.outputs.ready == 'true' && hashFiles('.github/workflows/bootstrap-badges.yml') != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -m pip install uv rust-just
+          just bootstrap
+          pages_url=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq .html_url)
+          uv run --group dev python scripts/bind_badges.py --pages-url "$pages_url"
+          just check-generated
+          rm .github/workflows/bootstrap-badges.yml scripts/bind_badges.py
+      - name: Open or update the setup PR
+        if: ${{ steps.bind.outcome == 'success' }}
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ github.token }}
+          branch: automation/bootstrap-badges
+          base: ${{ github.event.repository.default_branch }}
+          title: Set up live README badges
+          commit-message: Bind README and template badges and remove setup files
+          body: |
+            Populate direct links in existing READMEs and the service, library, and
+            workspace README templates using the published Pages URL.
+            Remove the one-time bootstrap workflow and badge-binding script.
+
+            If checks await approval, select "Approve workflows to run" on this PR before merging.
+          add-paths: |
+            README.md
+            services/*/README.md
+            libs/*/README.md
+            templates/service/*/README.md
+            templates/lib/*/README.md
+            templates/readme/header.md.jinja
+            scripts/bind_badges.py
+            .github/workflows/bootstrap-badges.yml
+{% endraw %}

@@ -1,0 +1,19 @@
+{% raw %}<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ member.path }} reports</title>
+<style>body{font:16px/1.6 system-ui,sans-serif;max-width:60rem;margin:3rem auto;padding:0 1rem}th,td{text-align:left;padding:.6rem;border-bottom:1px solid #ccc}a{color:#185abc}</style>
+<p><a href="{{ member.back }}">All workspace reports</a></p>
+<h1>{{ member.path }}</h1>
+<table>
+<tr><th>Lint and formatting</th><td>{{ member.badges.lint.message }}</td></tr>
+<tr><th>Tests</th><td>{{ member.badges.tests.message }} ({{ member.tests.passed }} passed, {{ member.tests.failed }} failed, {{ member.tests.skipped }} skipped)</td></tr>
+<tr><th>Line and branch coverage</th><td>{{ member.badges.coverage.message }}</td></tr>
+</table>
+{% if member.path != "integration" %}<p>Results come only from this member's checks. Coverage measures its own source during its own tests.</p>{% endif %}
+{% if member.has_coverage %}<p><a href="coverage/">Browse source coverage</a></p>{% endif %}
+{% if member.has_allure %}<p><a href="allure/">Allure report and history</a></p>{% endif %}
+<p>Raw reports: <a href="ruff.json">Lint</a> · <a href="ruff-format.json">Formatting</a> · <a href="junit.xml">JUnit</a> · <a href="coverage.json">Coverage JSON</a> · <a href="summary.json">Summary</a></p>
+</html>
+{% endraw %}

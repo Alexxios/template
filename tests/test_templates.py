@@ -85,6 +85,7 @@ def test_new_template_contains_only_tooling(collection, tmp_path, cookiecutter_c
     project = render(collection, "python-lib", tmp_path, cookiecutter_config)
     for filename in (
         "Makefile",
+        ".github/dependabot.yml",
         "LICENSE",
         "pyproject.toml",
         "README.md",
@@ -103,6 +104,12 @@ def test_new_template_contains_only_tooling(collection, tmp_path, cookiecutter_c
     assert "src" not in metadata["tool"]["ruff"]
     assert metadata["tool"]["coverage"]["run"]["source"] == ["."]
     assert (project / ".github/workflows/ci.yml").is_file()
+    dependabot = yaml.safe_load((project / ".github/dependabot.yml").read_text())
+    assert {item["package-ecosystem"] for item in dependabot["updates"]} == {
+        "github-actions",
+        "uv",
+        "pre-commit",
+    }
     assert not (project / ".sourcecraft").exists()
 
 

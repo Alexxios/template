@@ -1,11 +1,79 @@
-# GitHub Pages reports
+# CI and GitHub Pages reports
 
-This template supports GitHub Actions. Set `github_repository=owner/repository`
-when creating the workspace. README badge URLs are derived from this value and
-stored repository metadata in `tool.codegen.github_repository`; there is no
-separate reports URL setting. Select **GitHub Actions** as the repository's
-Pages source once. The default site is `https://owner.github.io/repository/`
-(or `https://owner.github.io/` for an `owner.github.io` repository).
+## Checks
+
+`checks.yml` is shared by default-branch and pull-request workflows. It discovers
+`services/*/pyproject.toml` and `libs/*/pyproject.toml` for a dynamic job matrix,
+including an independent `integration` job even when there are no members.
+`fail-fast: false` lets healthy members finish when another fails collection.
+A separate tooling job checks the generated README and builds documentation.
+
+The same Just commands run locally and in CI:
+
+```bash
+just check services/api
+just test libs/common
+just lint integration
+just check
+just reports
+```
+
+Each member's pytest invocation runs from its directory, installs its declared
+workspace/runtime dependencies and shared dev tools into `.venvs/<group>/<name>`,
+and measures only its own `src/`. The shared uv lockfile still resolves the whole
+workspace. Separate environments expose imports of unrelated workspace packages;
+they do not prevent access to transitive or tooling dependencies.
+
+Integration tests use a separate environment with all members installed. Their
+coverage does not contribute to member badges. Empty integration suites are
+allowed; empty member suites fail. Root scripts and integration tests are linted
+under the integration scope. Members run their own lint and formatting checks.
+
+Native Ruff, pytest, coverage, and Allure outputs go directly to each scope's
+report directory. `build_reports.py` only summarizes those outputs; it neither
+runs checks nor partitions workspace-wide results. Missing results/tool errors
+show unavailable, empty suites show no tests, and skipped suites show skipped.
+Reports are published after failing checks when report generation succeeds;
+the checks keep their failure status. PRs retain artifacts without publishing.
+
+## One-time badge setup
+
+Cookiecutter and local scaffolding require no repository name or URL. READMEs
+initially contain neutral **not published** Shields badges.
+
+1. Create the GitHub repository and select **GitHub Actions** as its Pages source.
+2. Under Settings → Actions → General → Workflow permissions, enable **Allow
+   GitHub Actions to create and approve pull requests**. Organization policy must
+   permit this setting.
+3. Push the project. After a successful Pages deployment, `bootstrap-badges.yml`
+   reads the actual Pages URL from GitHub (including custom domains) and opens
+   the `automation/bootstrap-badges` PR. If PR creation was disabled, enable it
+   and rerun the failed setup workflow from Actions.
+4. If the PR's checks await approval, select **Approve workflows to run**. Review
+   and merge the PR. It binds badge links in existing member READMEs and in the
+   service, library, and workspace README templates, then regenerates the workspace
+   README. It deletes both its workflow and `scripts/bind_badges.py` in that PR.
+
+The setup uses the built-in `GITHUB_TOKEN` with `contents: write` and
+`pull-requests: write`; no custom token or secret is required. The workflow file
+change is a deletion only. The PR does not create or modify workflow YAML.
+GitHub can require approval before running checks on token-created PRs; see
+[GitHub's workflow-triggering rules](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow#triggering-a-workflow-from-a-workflow).
+
+Reruns use the same PR branch. The workflow only responds to default-branch
+publication from this repository and checks that the deployment job succeeded,
+even when some member checks failed. It never uses PR artifacts or code.
+
+Future `just new-service` and `just new-lib` commands render direct links from
+the bound templates without Git/network access or a saved URL configuration.
+Running Cookiecutter directly on either member template works the same way.
+The setup preserves member prose and updates only standalone Shields lint,
+tests, and coverage badge lines. Normal codegen never rewrites member READMEs.
+
+After a Pages/domain move, update the plain report URLs and URL-encoded Shields
+endpoints in existing member READMEs, `templates/service/*/README.md`,
+`templates/lib/*/README.md`, and `templates/readme/header.md.jinja`, then run
+`just codegen`. Shields needs public access to the endpoint JSON.
 
 ## Published layout
 
@@ -14,60 +82,35 @@ Pages source once. The default site is `https://owner.github.io/repository/`
 ├── index.html                         MkDocs documentation
 ├── ci-reports/                        This guide
 └── reports/
-    ├── index.html                     Service/library status table
-    ├── allure/index.html              Workspace Allure report and trends
-    ├── history.jsonl                  Allure 3 history
-    ├── allure-results/                Raw Allure results and attachments
-    ├── coverage/                      Workspace source coverage
-    ├── junit.xml                      Workspace test results
-    ├── coverage.xml, coverage.json    Workspace coverage data
-    ├── ruff.json, ruff-format.json    Native lint and formatting findings
+    ├── index.html                     Links and status for every scope
     ├── services/<name>/
-    │   ├── index.html                 Only this service's results
-    │   ├── badges/
-    │   │   ├── lint.json              Shields endpoint
-    │   │   ├── tests.json             Shields endpoint
-    │   │   └── coverage.json          Shields endpoint
-    │   ├── coverage/                  Only this service's source coverage
-    │   └── summary.json, lint.json, junit.xml, coverage.json
-    └── libs/<name>/                   Same layout, only this library's results
+    │   ├── index.html                 Only this service's check results
+    │   ├── badges/{lint,tests,coverage}.json
+    │   ├── coverage/                  Only its source, from its tests
+    │   ├── allure/                    Its Allure report and trends
+    │   ├── allure-results/            Native results and attachments
+    │   ├── history.jsonl              Published Allure history snapshot
+    │   ├── junit.xml
+    │   ├── coverage.xml, coverage.json
+    │   ├── ruff.json, ruff-format.json
+    │   ├── lint.exit, format.exit, test.exit
+    │   └── summary.json
+    ├── libs/<name>/                   Same layout for each library
+    └── integration/                   Separate cross-member results
 ```
 
-The site is deployed using an Actions Pages artifact; a `gh-pages` Git branch
-is not required. Pull requests retain `check-reports` artifacts without deploying.
-
-## Badge scope
-
-Every member README and its row in the workspace README use the same three
-Shields endpoints under that member's report directory. Clicking any badge opens
-that member's report, which includes a link to its own coverage source listing.
-
-- **Lint:** Ruff diagnostics and formatting violations beneath that member's
-  directory, including its tests.
-- **Tests:** passed, failed, and skipped test cases from that member's `tests/`
-  directory. Root integration tests are kept in the workspace report.
-- **Coverage:** covered lines and branches divided by total executable lines and
-  branches under that member's `src/`. Execution by integration tests contributes
-  to coverage of that source; other members' source never enters the denominator.
-
-Missing or interrupted results show `unavailable` or `no data`; empty and skipped
-test suites do not show a passing test badge. Source coverage pages exist when
-coverage data is available. Failed tests and lint still produce reports and a
-deployment when report generation and documentation succeed. The workflow remains
-failed when a check fails. Shields needs public access to the endpoint JSON.
+Pages deployment uses an Actions artifact; no `gh-pages` Git branch is needed.
+Coverage pages exist only when data is available. Every badge opens its own
+member's report, which links to its coverage and Allure pages.
 
 ## Allure history
 
-Default-branch CI restores `reports/history.jsonl` from a branch-specific Actions
-cache, builds Allure, and saves the updated history under a unique run/attempt
-key. A failed test run still enters history when Allure generation succeeds.
-Runs are serialized to avoid competing history updates. Cache eviction starts a
-new history. This follows the base template's Allure 3 history flow.
+The reporting job restores `.allure-history/` from a default-branch cache and
+builds an Allure report for each scope using a separate `<scope>.jsonl` history
+file. It then saves the histories using a unique run/attempt key. Failed test
+runs still enter history. Default-branch workflows are serialized to avoid
+competing history updates. Cache eviction starts new history.
 
-Pull requests generate their own Allure report without restoring, appending, or
-saving default-branch history. The Allure report is workspace-wide; member badges
-come from the separately filtered member reports.
-
-`make lint` and `make test` remain direct Ruff/pytest commands. CI captures native
-JSON/XML outputs and runs `scripts/build_reports.py` afterward to render member
-pages and badge JSON. That script does not execute or replace the checks.
+PRs build Allure reports without restoring or saving history. Each scope's
+artifact is uploaded even if its checks fail; the reporting job collects them
+into `check-reports` and, on the default branch, the Pages artifact.

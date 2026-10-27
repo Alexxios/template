@@ -14,67 +14,57 @@ cookiecutter . --directory src/base
 
 The `web` template starts with empty `services/`, `libs/`, and `tests/` directories.
 It provides per-member package generators and an empty infrastructure starter.
-It retains the Makefile, LICENSE, pre-commit, MkDocs, and Python tooling.
+It includes a justfile, LICENSE, pre-commit, MkDocs, and Python tooling.
 
 ```bash
 cd <project_slug>
-make bootstrap
-make new-service NAME=api
-make new-lib NAME=common
+uv tool install rust-just
+just bootstrap
+just new-service api
+just new-lib common
 uv add --package api ./libs/common
-make bootstrap
-make check
+just bootstrap
+just check
 ```
 
 Choose your own member names and application framework. A service owns its
 `src/<name>/`, tests, `pyproject.toml`, and Dockerfile. A library has the same Python
 layout without a container. Service entry points are placeholders to implement.
 The root `tests/` is for integration tests across members. Creation commands
-refuse duplicate names. Pass `DESCRIPTION="..."` for a custom description.
-Use `make -C /path/to/workspace new-service NAME=api` from another directory.
+refuse duplicate names. Pass a second argument, such as
+`just new-lib common "Shared utilities"`, for a custom description.
+Use `just --justfile /path/to/workspace/justfile new-service api` from another directory.
 Customize `templates/service/` and
 `templates/lib/` independently; libraries never include service-only files.
 
-Member READMEs get direct Shields links for lint (including formatting), their
-own tests, and line/branch coverage during scaffolding. They remain editable and
-are never rewritten by codegen. The entire workspace README is generated from
-`templates/readme/README.md.jinja`, which includes `header.md.jinja` for the sorted
-service/library tables and badges. Edit those Jinja templates to customize the
-workspace documentation. Creating a member runs codegen automatically; run
-`make codegen` after manual additions, removals, renames, template edits, or changes
-to `tool.codegen.github_repository`. `make check-generated` detects stale output without
-writing files. Update existing member README links directly after repository renames.
+Each member has editable pytest configuration for its own `tests/` and `src/`.
+Root pytest configuration is for integration tests. `just check services/api`
+checks one member; `just check` runs all members and integration separately.
+Each test scope uses a separate environment and produces its own native reports.
+Shared tooling is installed by `just bootstrap`; commit the shared `uv.lock`.
 
-The root `pyproject.toml` remains editable. Pytest searches `tests`,
-`services/*/tests`, and `libs/*/tests`; it picks up new members automatically and
-does not collect source modules that happen to match test naming conventions.
-Workspace membership and Ruff source paths also use globs, so adding a member
-does not require regenerating this file or rewriting dependencies.
+The web template supports GitHub Actions only and asks for no repository or URL.
+Badges start as **not published**. After enabling GitHub Actions as the Pages
+source, the one-time setup workflow opens a PR binding README links to the actual
+Pages URL. That PR also binds the service, library, and workspace README templates
+and deletes both its workflow and `scripts/bind_badges.py`. Future members render
+links directly from the templates. It uses the built-in `GITHUB_TOKEN`; enable
+**Allow GitHub Actions to create and approve pull requests** under
+Settings → Actions → General.
+No custom token or secret is required. The setup PR's checks may await approval.
 
-`make bootstrap` installs all members and copies `.env.example` to `.env` if absent.
-Commit `uv.lock`. Add dependencies with `uv add --package <name> <dependency>`;
-use a local library path to declare a workspace dependency. Build containers from
-the workspace root after configuring services in `infra/docker-compose.yml`.
-The generated infrastructure README contains an example.
+CI discovers members into independent matrix jobs with `fail-fast: false`.
+A reporting job collects artifacts and builds member pages, badges, coverage,
+and separate Allure reports/history under `/reports/services/<name>/` and
+`/reports/libs/<name>/`. Integration results stay under `/reports/integration/`
+and do not contribute to member coverage badges. Default-branch CI deploys Pages;
+PRs retain artifacts without deploying or updating history. Failed checks still
+publish results when report generation succeeds, while keeping failure status.
 
-The web template supports GitHub Actions only. Set `github_repository=owner/repo`
-during generation and select **GitHub Actions** as the repository's Pages source
-once. All badge URLs are derived from that repository; no separate reports URL
-is needed. The root `tool.codegen.github_repository` controls future scaffolds
-and generated README tables.
-
-Default-branch `ci.yml` deploys MkDocs at `/`, an Allure report with cached history
-at `/reports/allure/`, and per-member pages at `/reports/services/<name>/` and
-`/reports/libs/<name>/`. Each member directory includes its own badge JSON, filtered
-lint/test/coverage data, and source coverage pages. Lint badges include formatting;
-test badges count only that member's tests; coverage includes only its `src/` code,
-including execution by integration tests. Missing results do not show as passing.
-
-`make lint` and `make test` invoke tools directly. CI's report-building step reads
-their native results without rerunning checks. Failed checks still publish results
-if report generation and documentation succeed. PRs retain reports without
-publishing or updating Allure history. The generated `docs/ci-reports.md` provides
-a complete Pages directory tree and history lifecycle.
+Creation refreshes the workspace README through its Jinja templates. Normal
+`just codegen` preserves existing member READMEs; the setup script only changes
+badge lines. See the generated `docs/ci-reports.md` for the full lifecycle.
+Dependabot updates Python dependencies, Actions, hooks, Allure, and service images.
 
 ## Create a template
 
@@ -140,15 +130,16 @@ cookiecutter gh:Alexxios/template --directory src/python-lib
 
 ## Generated tooling
 
-Use `make bootstrap` to install development and documentation dependencies.
-The Makefile also offers `lint`, `format`, `test`, `docs`, `serve`, and `check`.
+Base and metatemplate projects use `make bootstrap` to install development and
+documentation dependencies. Their Makefile also offers `lint`, `format`, `test`,
+`docs`, `serve`, and `check`. Web workspaces use the justfile commands described above.
 Add application code and tests before running `make check`; pytest reports an
 error if there are no tests. Enable packaging and select a build backend when
 your chosen layout needs an installable package.
 
-GitHub CI is enabled by default. Sourcecraft remains available by setting
-`ci_sourcecraft=yes` during project generation. The basic CI configurations run
-the same Make targets.
+GitHub CI is enabled by default. Base and metatemplate projects also support
+Sourcecraft via `ci_sourcecraft=yes`; web projects use GitHub only. The basic CI configurations run
+the same commands as local development.
 
 ## Repository development
 

@@ -4,7 +4,7 @@ name = "template-web-tooling"
 version = "0.1.0"
 
 # {% macro project_tooling() %}
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "cookiecutter>=2.7.1",
     "jinja2>=3.1.6",

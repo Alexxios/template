@@ -1,6 +1,5 @@
 {
   "package_name": "new_service",
   "description": "A workspace service",
-  "version": "{{cookiecutter.version}}",
-  "github_repository": {{ cookiecutter.github_repository | tojson }}
+  "version": "{{cookiecutter.version}}"
 }

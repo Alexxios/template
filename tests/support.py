@@ -1,7 +1,6 @@
 """Shared CLI for template-owned fixtures: render a project, then scaffold it."""
 
 import argparse
-import os
 import tomllib
 from collections.abc import Callable
 from pathlib import Path
@@ -41,7 +40,6 @@ def main(package: Path, scaffold: Callable[[Path], None]) -> None:
             "ci_sourcecraft": "yes" if args.ci == "sourcecraft" else "no",
             "ci_gitlab": "no",
             "init_git": "no",
-            **({"github_repository": os.environ["GH_REPO"]} if os.environ.get("GH_REPO") else {}),
         },
     )
     print(project)

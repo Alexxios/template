@@ -108,7 +108,7 @@ cookiecutter . --directory src/web
 ```
 
 The web template provides empty `services/`, `libs/`, and integration `tests/`
-directories in a Python 3.14 uv workspace. It keeps the tooling seed's Makefile,
+directories in a Python 3.14 uv workspace. It includes a justfile,
 LICENSE, pre-commit, MkDocs, pytest/coverage, and Ruff configuration. Infrastructure
 starters live in `infra/` (empty Compose files, `k8s/`, and `nginx/`).
 
@@ -116,47 +116,58 @@ After generation:
 
 ```bash
 cd <project_slug>
-make bootstrap
+uv tool install rust-just
+just bootstrap
 uv run pre-commit install
-make new-service NAME=api
-make new-lib NAME=common
+just new-service api
+just new-lib common
 uv add --package api ./libs/common
-make bootstrap
-make check
+just bootstrap
+just check
 ```
 
-Names above are examples. Each creation target creates an installable package with its own
+Names above are examples. Each creation command creates an installable package with its own
 `src/<name>/`, tests, and `pyproject.toml`. Services also get a Dockerfile and a
 placeholder entry point; choose the framework and implement startup yourself.
 `templates/service/` and `templates/lib/` independently control future scaffolds.
-Pass `DESCRIPTION="..."` to either target for a custom description. Creation uses
-the shared `scripts/new_workspace_member.py` helper and refuses duplicate names.
+Pass a second argument, such as `just new-service api "API service"`, for a custom
+description. Creation uses the shared `scripts/new_workspace_member.py` helper
+and refuses duplicate names.
 Each member README gets direct Shields lint, test, and coverage links from its
 Cookiecutter template and remains editable. Creation regenerates the entire
 workspace README from `templates/readme/README.md.jinja`, which includes
 `header.md.jinja` for the services/libraries tables and badges. Edit those Jinja
-templates and run `make codegen`; run it after manual member additions, removals,
-renames, or badge URL changes too. `make check-generated` checks for drift.
-The root `pyproject.toml` remains editable: pytest uses `tests`, `services/*/tests`,
-and `libs/*/tests`, so discovery follows workspace changes without regeneration.
-Commit `uv.lock` after installing.
-An empty workspace has no tests, so scaffold members or add integration tests
-before running `make check`.
+templates and run `just codegen`; run it after manual member additions, removals,
+renames, or badge URL changes too. `just check-generated` checks for drift.
+Each member has editable pytest configuration for its own `tests/` and `src/`.
+Root pytest configuration is for integration tests. `just check services/api`
+checks one member; `just check` runs all members and integration separately.
+Each test scope uses a separate environment and produces its own native reports.
+Shared tooling is installed by `just bootstrap`; commit the shared `uv.lock`.
 
-The web template supports GitHub Actions only. Set `github_repository=owner/repo`
-during generation and select **GitHub Actions** as the repository's Pages source
-once. Badge URLs are derived from `tool.codegen.github_repository`.
-Default-branch `ci.yml` deploys MkDocs at `/`, Allure and its cached history at
-`/reports/allure/`, and individual reports at `/reports/services/<name>/` and
-`/reports/libs/<name>/`. Member badge JSON and click targets use only that member's
-lint findings, tests, and source coverage. Integration tests contribute to source
-coverage without entering a member's own test count.
+The web template supports GitHub Actions only and asks for no repository or URL.
+Badges start as **not published**. After enabling GitHub Actions as the Pages
+source, the one-time setup workflow opens a PR binding README links to the actual
+Pages URL. That PR also binds the service, library, and workspace README templates
+and deletes both its workflow and `scripts/bind_badges.py`. Future members render
+links directly from the templates. It uses the built-in `GITHUB_TOKEN`; enable
+**Allow GitHub Actions to create and approve pull requests** under
+Settings → Actions → General.
+No custom token or secret is required. The setup PR's checks may await approval.
 
-`make lint` and `make test` remain direct tool invocations. CI processes native
-Ruff/pytest outputs afterward to build member reports. Failed checks still publish
-results when reports and docs build successfully, while the workflow remains
-failed. PRs retain `check-reports` without deploying or writing Allure history.
-The generated `docs/ci-reports.md` describes the Pages layout and history flow.
+CI discovers members into independent matrix jobs with `fail-fast: false`.
+A reporting job collects artifacts and builds member pages, badges, coverage,
+and separate Allure reports/history under `/reports/services/<name>/` and
+`/reports/libs/<name>/`. Integration results stay under `/reports/integration/`
+and do not contribute to member coverage badges. Default-branch CI deploys Pages;
+PRs retain artifacts without deploying or updating history. Failed checks still
+publish results when report generation succeeds, while keeping failure status.
+
+Creation refreshes the workspace README through its Jinja templates. Normal
+`just codegen` preserves existing member READMEs; the setup script only changes
+badge lines. See the generated `docs/ci-reports.md` for the full lifecycle.
+Dependabot updates Python dependencies, Actions, hooks, Allure, and service images.
+
 The web template does not use the base-only `package_name`, `init_git`, or CI
 provider selection settings.
 
@@ -421,7 +432,9 @@ pre-commit hooks. The workflow directory rules cover both generated workflows,
 including `pull-request.yml`. The tooling seed in `templates/cookiecutter/`
 has matching Actions, dependency-manifest, and pre-commit update rules.
 
-Base projects generated with `ci_github=yes` also include `.github/dependabot.yml`.
+Base and metatemplate projects generated with `ci_github=yes`, and all web projects,
+include `.github/dependabot.yml`. Metatemplate projects cover Actions, uv, and hooks;
+web adds Allure and service container images. Base projects retain their existing setup.
 They receive weekly updates for GitHub Actions, Python dependencies through uv
 (including `uv.lock` when committed), Allure CLI through npm, and pre-commit hooks.
 The reporting workflow installs the Allure version declared in `.github/package.json`.

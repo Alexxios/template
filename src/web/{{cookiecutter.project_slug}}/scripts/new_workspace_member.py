@@ -10,7 +10,7 @@ import tempfile
 import tomllib
 from pathlib import Path
 
-from codegen import context, sync
+from codegen import sync
 from cookiecutter.exceptions import CookiecutterException
 from cookiecutter.main import cookiecutter
 from jinja2 import TemplateError
@@ -36,7 +36,6 @@ def create_member(kind: str, name: str, description: str) -> Path:
     if re.sub(r"[-_.]+", "-", name) in names:
         raise ValueError(f"A workspace project named {name!r} already exists.")
     destination.parent.mkdir(parents=True, exist_ok=True)
-    repository = context(ROOT)["github_repository"]
     with tempfile.TemporaryDirectory(prefix=".new-member-", dir=destination.parent) as temporary:
         generated = cookiecutter(
             str(ROOT / "templates" / kind),
@@ -45,7 +44,6 @@ def create_member(kind: str, name: str, description: str) -> Path:
             extra_context={
                 "package_name": name,
                 "description": description,
-                "github_repository": repository,
             },
         )
         Path(generated).rename(destination)
@@ -69,7 +67,7 @@ def main() -> None:
         )
     except (ValueError, OSError, KeyError, TemplateError, CookiecutterException) as exc:
         parser.exit(1, f"Error: {exc}\n")
-    print(f"Created {destination}. Run make bootstrap to install workspace members.")
+    print(f"Created {destination}. Run just check {destination.relative_to(ROOT)}.")
 
 
 if __name__ == "__main__":
