@@ -117,7 +117,9 @@ def planned_files(root: Path) -> dict[Path, str | None]:
         if path not in files and path.read_text().startswith(GENERATED):
             files[path] = None
     files[root / ".sourcecraft/ci.yaml"] = (
-        environment.get_template("sourcecraft.yaml.jinja").render(templates=templates).rstrip()
+        environment.get_template("sourcecraft.yaml.jinja")
+        .render(templates=[item for item in templates if "sourcecraft" in item])
+        .rstrip()
         + "\n"
     )
     status = environment.get_template("readme.md.jinja").render(templates=templates)

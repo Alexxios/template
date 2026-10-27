@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import re
 import tempfile
 import tomllib
 from pathlib import Path
-from urllib.parse import quote, urlsplit
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, TemplateError
 
@@ -24,18 +24,24 @@ def members(root: Path = ROOT) -> list[Path]:
 
 def context(root: Path = ROOT) -> dict:
     config = tomllib.loads((root / "pyproject.toml").read_text())
-    reports_url = config.get("tool", {}).get("codegen", {}).get("reports_url", "").rstrip("/")
-    if reports_url:
-        url = urlsplit(reports_url)
-        if url.scheme not in {"http", "https"} or not url.netloc or url.query or url.fragment:
-            raise ValueError("tool.codegen.reports_url must be a public HTTP(S) base URL")
-        reports_url = quote(reports_url, safe=":/%@")
+    repository = config["tool"]["codegen"]["github_repository"]
+    if not re.fullmatch(r"[\w.-]+/[\w.-]+", repository):
+        raise ValueError("tool.codegen.github_repository must be a GitHub owner/repository")
+    owner, name = repository.split("/")
+    pages_url = f"https://{owner.lower()}.github.io"
+    if name.lower() != f"{owner.lower()}.github.io":
+        pages_url += f"/{name}"
     grouped = {"services": [], "libs": []}
     for member in members(root):
         grouped[member.parent.name].append(
             {"name": member.name, "path": member.relative_to(root).as_posix()}
         )
-    return {"project": config["project"], "reports_url": reports_url, **grouped}
+    return {
+        "project": config["project"],
+        "github_repository": repository,
+        "pages_url": pages_url,
+        **grouped,
+    }
 
 
 def sync(root: Path = ROOT, *, check: bool = False) -> list[Path]:

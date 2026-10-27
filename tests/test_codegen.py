@@ -131,8 +131,9 @@ def test_sync_removes_only_obsolete_generated_workflows(collection):
     assert "validate-custom.yml" not in (collection / "README.md").read_text()
 
 
-@pytest.mark.parametrize("template", ["base", "web"])
-@pytest.mark.parametrize("ci", ["github", "sourcecraft"])
+@pytest.mark.parametrize(
+    "template, ci", [("base", "github"), ("base", "sourcecraft"), ("web", "github")]
+)
 def test_existing_templates_share_render_and_scaffold_cli(
     template, ci, tmp_path, cookiecutter_config
 ):

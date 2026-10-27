@@ -25,7 +25,6 @@ def project(tmp_path, cookiecutter_config):
             output_dir=str(tmp_path),
             extra_context={
                 "project_name": "Web Example",
-                "ci_sourcecraft": "yes",
                 "github_repository": "example/web-example",
             },
         )
@@ -132,29 +131,36 @@ def test_inner_ci_fixture_scaffolds_workspace_dependencies(project):
     assert (project / "tests/test_workspace.py").is_file()
 
 
-@pytest.mark.parametrize("github,sourcecraft", [("yes", "no"), ("no", "yes"), ("no", "no")])
-def test_web_ci_selection(tmp_path, cookiecutter_config, github, sourcecraft):
-    generated = Path(
-        cookiecutter(
-            str(ROOT),
-            directory="src/web",
-            no_input=True,
-            output_dir=str(tmp_path),
-            extra_context={"ci_github": github, "ci_sourcecraft": sourcecraft},
-        )
-    )
-    assert (generated / ".github").exists() == (github == "yes")
-    assert (generated / ".sourcecraft").exists() == (sourcecraft == "yes")
+def test_web_is_github_only_without_a_reports_url_setting(project):
+    assert (project / ".github").is_dir()
+    assert not (project / ".sourcecraft").exists()
+    options = json.loads((ROOT / "src/web/cookiecutter.json").read_text())
+    assert not {"ci_github", "ci_sourcecraft", "reports_url"} & options.keys()
+    config = tomllib.loads((project / "pyproject.toml").read_text())
+    assert config["tool"]["codegen"] == {"github_repository": "example/web-example"}
     # The nested generator still contains its own context after the first render.
     for kind in ("service", "lib"):
-        context = json.loads((generated / f"templates/{kind}/cookiecutter.json").read_text())
+        context = json.loads((project / f"templates/{kind}/cookiecutter.json").read_text())
         assert context["package_name"] == f"new_{kind}"
         assert "_kind" not in context
-    result = generate(generated, "lib", "common")
+        assert "reports_url" not in context
+    result = generate(project, "lib", "common")
     assert result.returncode == 0, result.stderr
-    readme = (generated / "libs/common/README.md").read_text()
-    assert ("img.shields.io/endpoint?" in readme) == (github == "yes")
-    assert ("not%20run" in readme) == (github == "no")
+    assert "img.shields.io/endpoint?" in (project / "libs/common/README.md").read_text()
+
+
+def test_web_rejects_sourcecraft_validation_before_rendering(tmp_path, cookiecutter_config):
+    project = tmp_path / "unsupported"
+    result = subprocess.run(
+        [sys.executable, "-m", "tests.web", "render", str(project), "--ci", "sourcecraft"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "does not support sourcecraft" in result.stderr
+    assert not project.exists()
 
 
 def test_web_separates_default_branch_pages_from_pull_request_checks(project):
@@ -190,6 +196,35 @@ def test_web_separates_default_branch_pages_from_pull_request_checks(project):
     assert any(step.get("with", {}).get("name") == "check-reports" for step in pr_steps)
     assert not any("pages" in step.get("uses", "") for step in pr_steps)
     assert "deploy" not in pull_request["jobs"]
+
+
+def test_allure_history_is_restored_and_saved_only_on_the_default_branch(project):
+    workflow = yaml.safe_load((project / ".github/workflows/ci.yml").read_text())
+    steps = workflow["jobs"]["checks"]["steps"]
+    restore = next(step for step in steps if step.get("id") == "history")
+    assert restore["uses"].startswith("actions/cache/restore@")
+    assert restore["with"]["path"] == "reports/history.jsonl"
+    for key in ("github.ref_name", "github.run_id", "github.run_attempt"):
+        assert key in restore["with"]["key"]
+    assert restore["with"]["restore-keys"] == "allure-history-${{ github.ref_name }}-"
+    allure = next(step for step in steps if step.get("id") == "allure")
+    assert "--history-path reports/history.jsonl" in allure["run"]
+    assert "--output reports/allure" in allure["run"]
+    assert "!cancelled()" in allure["if"]
+    save = next(step for step in steps if step.get("uses", "").startswith("actions/cache/save@"))
+    assert "steps.allure.outcome == 'success'" in save["if"]
+    assert save["with"]["key"] == "${{ steps.history.outputs.cache-primary-key }}"
+    for identifier in ("lint", "formatting", "tests", "reports"):
+        step = next(step for step in steps if step.get("id") == identifier)
+        assert "!cancelled()" in step["if"]
+    report = next(step for step in steps if step.get("id") == "reports")
+    assert report["env"]["LINT_OUTCOME"] == "${{ steps.lint.outcome }}"
+    assert report["env"]["FORMAT_OUTCOME"] == "${{ steps.formatting.outcome }}"
+    assert workflow["concurrency"]["queue"] == "max"
+    pr = (project / ".github/workflows/pull-request.yml").read_text()
+    assert "allure awesome reports/allure-results" in pr
+    for forbidden in ("history.jsonl", "cache/restore", "cache/save", "deploy-pages"):
+        assert forbidden not in pr
 
 
 def test_service_and_lib_templates_can_evolve_independently(project):

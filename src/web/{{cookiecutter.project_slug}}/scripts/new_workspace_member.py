@@ -36,7 +36,7 @@ def create_member(kind: str, name: str, description: str) -> Path:
     if re.sub(r"[-_.]+", "-", name) in names:
         raise ValueError(f"A workspace project named {name!r} already exists.")
     destination.parent.mkdir(parents=True, exist_ok=True)
-    reports_url = context(ROOT)["reports_url"]
+    repository = context(ROOT)["github_repository"]
     with tempfile.TemporaryDirectory(prefix=".new-member-", dir=destination.parent) as temporary:
         generated = cookiecutter(
             str(ROOT / "templates" / kind),
@@ -45,7 +45,7 @@ def create_member(kind: str, name: str, description: str) -> Path:
             extra_context={
                 "package_name": name,
                 "description": description,
-                "reports_url": reports_url,
+                "github_repository": repository,
             },
         )
         Path(generated).rename(destination)

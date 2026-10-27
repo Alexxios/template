@@ -8,8 +8,5 @@
   "python_version": "3.14",
   "python_min_version": "3.14",
   "license": ["MIT", "Apache-2.0", "BSD-3-Clause", "Proprietary"],
-  "ci_github": ["yes", "no"],
-  "ci_sourcecraft": ["no", "yes"],
-  "github_repository": "your-github-username/{{cookiecutter.project_slug}}",
-  "reports_url": "{% if cookiecutter.ci_github == 'yes' %}https://{{cookiecutter.github_repository.split('/')[0]}}.github.io/{% if cookiecutter.github_repository.split('/')[-1].lower() != cookiecutter.github_repository.split('/')[0].lower() + '.github.io' %}{{cookiecutter.github_repository.split('/')[-1]}}/{% endif %}reports{% endif %}"
+  "github_repository": "your-github-username/{{cookiecutter.project_slug}}"
 }

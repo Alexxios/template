@@ -41,6 +41,8 @@ def selected(paths, changes):
 @pytest.mark.parametrize("event", ["push", "pull_request"])
 def test_only_affected_templates_are_selected(provider, event):
     paths = validation_paths(ROOT, provider, event, ["base", "web"])
+    supported = {"base", "web"} if provider == "github" else {"base"}
+    assert set(paths) == supported
     both = {"base", "web"}
     cases = [
         (["src/base/cookiecutter.json"], {"base"}),
@@ -67,7 +69,7 @@ def test_only_affected_templates_are_selected(provider, event):
         ([], set()),
     ]
     for changes, expected in cases:
-        assert selected(paths, changes) == expected, (provider, event, changes)
+        assert selected(paths, changes) == expected & supported, (provider, event, changes)
 
 
 def test_repository_checks_and_manual_github_runs_remain_unfiltered():

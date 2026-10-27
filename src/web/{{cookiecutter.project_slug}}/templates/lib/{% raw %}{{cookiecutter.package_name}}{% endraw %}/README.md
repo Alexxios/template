@@ -1,14 +1,11 @@
 {% raw %}# {{cookiecutter.package_name}}
 
-{% if cookiecutter.reports_url -%}
-[![lint](https://img.shields.io/endpoint?url={{ (cookiecutter.reports_url ~ "/badges/libs/" ~ cookiecutter.package_name ~ "/lint.json") | urlencode }})]({{cookiecutter.reports_url}}/lint.json)
-[![tests](https://img.shields.io/endpoint?url={{ (cookiecutter.reports_url ~ "/badges/libs/" ~ cookiecutter.package_name ~ "/tests.json") | urlencode }})]({{cookiecutter.reports_url}}/tests.json)
-[![coverage](https://img.shields.io/endpoint?url={{ (cookiecutter.reports_url ~ "/badges/libs/" ~ cookiecutter.package_name ~ "/coverage.json") | urlencode }})]({{cookiecutter.reports_url}}/coverage/index.html)
-{% else -%}
-![lint](https://img.shields.io/badge/lint-not%20run-lightgrey)
-![tests](https://img.shields.io/badge/tests-not%20run-lightgrey)
-![coverage](https://img.shields.io/badge/coverage-not%20run-lightgrey)
-{% endif %}
+{% set owner, repository = cookiecutter.github_repository.split("/") -%}
+{% set pages_url = "https://" ~ owner.lower() ~ ".github.io" ~ ("" if repository.lower() == owner.lower() ~ ".github.io" else "/" ~ repository) -%}
+{% set member_url = pages_url ~ "/reports/libs/" ~ cookiecutter.package_name -%}
+[![lint](https://img.shields.io/endpoint?url={{ (member_url ~ "/badges/lint.json") | urlencode }})]({{member_url}}/)
+[![tests](https://img.shields.io/endpoint?url={{ (member_url ~ "/badges/tests.json") | urlencode }})]({{member_url}}/)
+[![coverage](https://img.shields.io/endpoint?url={{ (member_url ~ "/badges/coverage.json") | urlencode }})]({{member_url}}/)
 
 {{cookiecutter.description}}
 

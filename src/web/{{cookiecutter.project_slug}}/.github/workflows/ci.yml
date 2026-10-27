@@ -9,6 +9,7 @@ permissions:
 
 concurrency:
   group: default-branch-pages
+  queue: max
   cancel-in-progress: false
 
 jobs:
@@ -25,19 +26,58 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "{{cookiecutter.python_version}}"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          package-manager-cache: false
       - name: Install tools
         id: tools
         run: |
           python -m pip install uv
           make bootstrap
+      - name: Restore Allure history
+        id: history
+        uses: actions/cache/restore@v6
+        with:
+          path: reports/history.jsonl
+          key: "{% raw %}allure-history-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}{% endraw %}"
+          restore-keys: "{% raw %}allure-history-${{ github.ref_name }}-{% endraw %}"
       - name: Check generated files
         run: make check-generated
-      - name: Lint and check formatting
+      - name: Lint
+        id: lint
         if: "{% raw %}${{ !cancelled() && steps.tools.outcome == 'success' }}{% endraw %}"
-        run: make lint
-      - name: Test with coverage
+        run: |
+          mkdir -p reports
+          uv run --all-packages ruff check . --output-format=json --output-file=reports/ruff.json
+      - name: Check formatting
+        id: formatting
+        if: "{% raw %}${{ !cancelled() && steps.tools.outcome == 'success' }}{% endraw %}"
+        run: uv run --all-packages ruff format --check --output-format=json . > reports/ruff-format.json
+      - name: Test with coverage and Allure results
+        id: tests
         if: "{% raw %}${{ !cancelled() && steps.tools.outcome == 'success' }}{% endraw %}"
         run: make test
+      - name: Build member reports and badges
+        id: reports
+        if: "{% raw %}${{ !cancelled() && steps.tools.outcome == 'success' }}{% endraw %}"
+        env:
+          LINT_OUTCOME: "{% raw %}${{ steps.lint.outcome }}{% endraw %}"
+          FORMAT_OUTCOME: "{% raw %}${{ steps.formatting.outcome }}{% endraw %}"
+        run: uv run --all-packages python scripts/build_reports.py
+      - name: Build Allure report
+        id: allure
+        if: "{% raw %}${{ !cancelled() && steps.tools.outcome == 'success' }}{% endraw %}"
+        run: |
+          npm install --prefix .github --no-package-lock
+          .github/node_modules/.bin/allure awesome reports/allure-results --single-file --output reports/allure \
+            --history-path reports/history.jsonl
+      - name: Save Allure history
+        if: "{% raw %}${{ !cancelled() && steps.allure.outcome == 'success' }}{% endraw %}"
+        uses: actions/cache/save@v6
+        with:
+          path: reports/history.jsonl
+          key: "{% raw %}${{ steps.history.outputs.cache-primary-key }}{% endraw %}"
       - name: Build documentation and assemble Pages site
         id: docs
         if: "{% raw %}${{ !cancelled() && steps.tools.outcome == 'success' }}{% endraw %}"
@@ -56,7 +96,7 @@ jobs:
           if-no-files-found: warn
       - name: Upload Pages artifact
         id: pages
-        if: "{% raw %}${{ !cancelled() && steps.docs.outcome == 'success' }}{% endraw %}"
+        if: "{% raw %}${{ !cancelled() && steps.docs.outcome == 'success' && steps.reports.outcome == 'success' && steps.allure.outcome == 'success' }}{% endraw %}"
         uses: actions/upload-pages-artifact@v5
         with:
           path: site/

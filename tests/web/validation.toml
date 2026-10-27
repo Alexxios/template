@@ -13,8 +13,3 @@ pull_request_artifact = "check-reports"
 publish_pages = false
 enable_pages = true
 
-[sourcecraft]
-workflow = "ci"
-artifacts = [
-    { task = "check", cube = "tooling", paths = ["reports/junit.xml", "reports/coverage.xml", "reports/coverage.json"] },
-]

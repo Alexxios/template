@@ -42,8 +42,8 @@ are never rewritten by codegen. The entire workspace README is generated from
 service/library tables and badges. Edit those Jinja templates to customize the
 workspace documentation. Creating a member runs codegen automatically; run
 `make codegen` after manual additions, removals, renames, template edits, or changes
-to `tool.codegen.reports_url`. `make check-generated` detects stale output without
-writing files. Update existing member README links directly after changing hosts.
+to `tool.codegen.github_repository`. `make check-generated` detects stale output without
+writing files. Update existing member README links directly after repository renames.
 
 The root `pyproject.toml` remains editable. Pytest searches `tests`,
 `services/*/tests`, and `libs/*/tests`; it picks up new members automatically and
@@ -57,22 +57,24 @@ use a local library path to declare a workspace dependency. Build containers fro
 the workspace root after configuring services in `infra/docker-compose.yml`.
 The generated infrastructure README contains an example.
 
-GitHub CI defaults to enabled. `pull-request.yml` handles PR checks and retains
-`check-reports`. `ci.yml` checks the repository's default branch and also uploads
-`github-pages`, containing the documentation site and test reports under
-`reports/`. It follows the default branch in the repository settings and uploads
-the Pages artifact before automatically deploying it. Set `github_repository` to
-`owner/repo` during generation, then select **GitHub Actions** as the repository's
-Pages source once. Set `reports_url` during generation or
-`tool.codegen.reports_url` afterward for a custom public host.
-`make lint` runs Ruff and its formatting check directly; `make test` runs pytest
-with standard JUnit and coverage reporting. The badge links expect
-`reports/badges/{services,libs}/<name>/{lint,tests,coverage}.json`; publishing these
-endpoints requires a separate reporting integration. The Make targets do not
-generate badge JSON. An empty reports URL renders neutral `not run` badges.
-Failed checks still publish test reports if documentation builds successfully.
-PRs never deploy. Select `ci_sourcecraft=yes` for Sourcecraft, which runs
-`make check` and retains JUnit and coverage reports.
+The web template supports GitHub Actions only. Set `github_repository=owner/repo`
+during generation and select **GitHub Actions** as the repository's Pages source
+once. All badge URLs are derived from that repository; no separate reports URL
+is needed. The root `tool.codegen.github_repository` controls future scaffolds
+and generated README tables.
+
+Default-branch `ci.yml` deploys MkDocs at `/`, an Allure report with cached history
+at `/reports/allure/`, and per-member pages at `/reports/services/<name>/` and
+`/reports/libs/<name>/`. Each member directory includes its own badge JSON, filtered
+lint/test/coverage data, and source coverage pages. Lint badges include formatting;
+test badges count only that member's tests; coverage includes only its `src/` code,
+including execution by integration tests. Missing results do not show as passing.
+
+`make lint` and `make test` invoke tools directly. CI's report-building step reads
+their native results without rerunning checks. Failed checks still publish results
+if report generation and documentation succeed. PRs retain reports without
+publishing or updating Allure history. The generated `docs/ci-reports.md` provides
+a complete Pages directory tree and history lifecycle.
 
 ## Create a template
 
@@ -102,7 +104,8 @@ uv run python -m tests.python_lib render /tmp/python-lib-fixture --ci github
 uv run python -m tests.python_lib scaffold /tmp/python-lib-fixture
 ```
 
-Select `--ci sourcecraft` to generate a Sourcecraft fixture. The default scaffold
+For templates with a `[sourcecraft]` validation section, select `--ci sourcecraft`
+to generate a Sourcecraft fixture. The web fixture accepts GitHub only. The default scaffold
 adds a small tested example to the integration fixture only; the project seed
 continues to contain no application layout.
 
@@ -168,8 +171,8 @@ exercise its nested package helper. Metatemplate checks render both the new
 template and its resulting project. Add template-specific tests when a new
 template's structure or inputs diverge from the starter.
 
-Each template has an independent GitHub validation workflow and a Sourcecraft
-workflow. Automatic validation is filtered by changed paths: `src/<template>/**`
+Each template has an independent GitHub validation workflow. Templates declaring
+Sourcecraft support also have a Sourcecraft validation workflow. Automatic validation is filtered by changed paths: `src/<template>/**`
 and `tests/<package>/**` select that template, while shared fixture helpers, root
 dependencies/Python version, and the workflow generator select all templates.
 Provider-specific workflow sources select all validations for that provider.

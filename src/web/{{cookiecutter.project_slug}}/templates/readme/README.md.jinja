@@ -51,25 +51,20 @@ The service entry point raises `NotImplementedError` until implemented.
 See [infra/README.md](infra/README.md) for the empty Compose configuration and
 container build instructions. `infra/k8s/` and `infra/nginx/` are placeholders.
 
-GitHub uses `pull-request.yml` for PR checks and `ci.yml` for the repository's
-default branch. Both run the lint, test, and documentation checks and retain
-JUnit and coverage reports as `check-reports`. Default-branch CI uploads a
-`github-pages` artifact and automatically deploys the documentation and reports.
-Select **Settings → Pages → Build and deployment → Source: GitHub Actions** once
-in your repository. Set `github_repository` to your `owner/repo` when generating
-the workspace. `tool.codegen.reports_url` in `pyproject.toml` defaults to
-its public Pages reports URL; change it and run `make codegen` for a custom domain.
-Update existing member README links directly when changing the reports host.
+GitHub Actions is the CI provider. `pull-request.yml` retains check reports and
+builds Allure without updating history. The repository's default branch uses
+`ci.yml` to deploy documentation, workspace Allure history, and per-member reports
+to GitHub Pages. Set `github_repository=owner/repository` when generating the
+workspace and select **GitHub Actions** as the repository's Pages source once.
+Badge URLs are derived from `tool.codegen.github_repository`. After a repository
+rename, update that value, run `make codegen`, and edit existing member links.
 
-`make lint` runs Ruff and its formatting check directly. `make test` runs pytest
-with standard JUnit and coverage reports. Failed checks still publish test reports
-when the docs build succeeds. PRs retain reports without deploying them.
+Every member's lint, tests, and coverage badges read only that member's data and
+link to its own report at `reports/services/<name>/` or `reports/libs/<name>/`.
+CI runs native Ruff/pytest commands, then processes their outputs into report
+pages and Shields JSON endpoints. Failed checks still publish results when report
+and documentation generation succeed, while keeping the workflow failed.
 
-The direct Shields badge links expect JSON endpoints at
-`reports/badges/{services,libs}/<name>/{lint,tests,coverage}.json`. These endpoints
-require a separate reporting integration; the Make targets do not generate them.
-Endpoints must be publicly accessible to [Shields](https://shields.io/badges/endpoint-badge).
-With an empty `reports_url`, badges display `not run`.
-
-Optional Sourcecraft CI runs `make bootstrap` and `make check` and retains JUnit
-and coverage reports. Pre-commit, MkDocs, and LICENSE are included.
+See [the Pages layout and history guide](docs/ci-reports.md) for artifact paths,
+badge scope, and Allure history behavior. Shields requires publicly accessible
+endpoints; badges become live after the first default-branch deployment.

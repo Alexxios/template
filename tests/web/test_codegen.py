@@ -7,10 +7,30 @@ import tomllib
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+import pytest
 from cookiecutter.main import cookiecutter
 
 from .test_web import generate, run_make
 from .test_web import project as project
+
+
+@pytest.mark.parametrize(
+    "repository, base_url",
+    [
+        ("Example/MyRepo", "https://example.github.io/MyRepo"),
+        ("Example/example.github.io", "https://example.github.io"),
+    ],
+)
+def test_member_and_workspace_badges_derive_the_same_github_pages_url(
+    project, repository, base_url
+):
+    manifest = project / "pyproject.toml"
+    manifest.write_text(manifest.read_text().replace("example/web-example", repository))
+    assert generate(project, "lib", "common").returncode == 0
+    expected = f"{base_url}/reports/libs/common/badges/coverage.json"
+    for path in (project / "README.md", project / "libs/common/README.md"):
+        url = path.read_text().split("[![coverage](", 1)[1].split(")", 1)[0]
+        assert parse_qs(urlsplit(url).query)["url"] == [expected]
 
 
 def run_script(project, script, *args):
@@ -67,8 +87,9 @@ def test_member_templates_render_direct_links_without_a_followup_rewrite(project
             endpoint = parse_qs(urlsplit(url).query)["url"][0]
             assert (
                 endpoint
-                == f"https://example.github.io/web-example/reports/badges/{group}/example/{label}.json"
+                == f"https://example.github.io/web-example/reports/{group}/example/badges/{label}.json"
             )
+            assert f"](https://example.github.io/web-example/reports/{group}/example/)" in text
     assert generate(project, "service", "api").returncode == 0
     readme = project / "services/api/README.md"
     readme.write_text("# My service\n\nHand-maintained links and documentation.\n")
@@ -84,9 +105,7 @@ def test_codegen_updates_tables_and_urls_without_mutating_existing_member_readme
     shutil.rmtree(project / "services/api")
     manifest = project / "pyproject.toml"
     manifest.write_text(
-        manifest.read_text().replace(
-            "https://example.github.io/web-example/reports", "https://docs.example.com/reports"
-        )
+        manifest.read_text().replace("example/web-example", "another/new-repository")
     )
     readme = project / "README.md"
     member_readme = project / "libs/common/README.md"
@@ -95,12 +114,12 @@ def test_codegen_updates_tables_and_urls_without_mutating_existing_member_readme
     assert all(path.read_bytes() == original for path, original in before.items())
     assert run_script(project, "codegen.py").returncode == 0
     assert "[api](services/api/)" not in readme.read_text()
-    assert "docs.example.com" in readme.read_text()
+    assert "another.github.io/new-repository" in readme.read_text()
     assert member_readme.read_bytes() == before[member_readme]
     assert manifest.read_bytes() == before[manifest]
     # Future scaffolds take their links from the current workspace configuration.
     assert generate(project, "lib", "new_common").returncode == 0
-    assert "docs.example.com" in (project / "libs/new_common/README.md").read_text()
+    assert "another.github.io/new-repository" in (project / "libs/new_common/README.md").read_text()
     assert run_script(project, "codegen.py", "--check").returncode == 0
 
 

@@ -143,22 +143,22 @@ Commit `uv.lock` after installing.
 An empty workspace has no tests, so scaffold members or add integration tests
 before running `make check`.
 
-GitHub CI is enabled by default. Pull requests use `pull-request.yml` and retain
-`check-reports`. The repository's default branch uses `ci.yml` and also uploads a
-`github-pages` artifact containing the MkDocs site and test reports. The workflow
-reads the default branch from the repository settings and automatically deploys
-the documentation and standard test/coverage reports to GitHub Pages. Set
-`github_repository=owner/repo` during generation and select **GitHub Actions** as
-the repository's Pages source once. For custom domains, set
-`tool.codegen.reports_url` and run `make codegen`; update existing member README
-links directly. Failed lint/tests still publish their reports if the docs build
-succeeds; PRs never deploy. Sourcecraft CI remains available with
-`ci_sourcecraft=yes` and runs the same checks.
-`make lint` invokes Ruff directly; `make test` invokes pytest directly. The
-scaffolded per-member badge links require a separate integration to publish their
-JSON endpoints; these Make targets do not generate badge data.
-The web template does not use the base-only `package_name`, `init_git`, or
-`ci_gitlab` settings.
+The web template supports GitHub Actions only. Set `github_repository=owner/repo`
+during generation and select **GitHub Actions** as the repository's Pages source
+once. Badge URLs are derived from `tool.codegen.github_repository`.
+Default-branch `ci.yml` deploys MkDocs at `/`, Allure and its cached history at
+`/reports/allure/`, and individual reports at `/reports/services/<name>/` and
+`/reports/libs/<name>/`. Member badge JSON and click targets use only that member's
+lint findings, tests, and source coverage. Integration tests contribute to source
+coverage without entering a member's own test count.
+
+`make lint` and `make test` remain direct tool invocations. CI processes native
+Ruff/pytest outputs afterward to build member reports. Failed checks still publish
+results when reports and docs build successfully, while the workflow remains
+failed. PRs retain `check-reports` without deploying or writing Allure history.
+The generated `docs/ci-reports.md` describes the Pages layout and history flow.
+The web template does not use the base-only `package_name`, `init_git`, or CI
+provider selection settings.
 
 ## Create a new template
 
@@ -217,7 +217,8 @@ uv run python -m tests.python_lib scaffold /tmp/python-lib-fixture
 ```
 
 `render` invokes Cookiecutter with the package's `[context]` settings and selects
-GitHub or Sourcecraft CI (`--ci sourcecraft`). `scaffold` calls that package's
+a supported CI provider. Base and tooling-only templates also accept
+`--ci sourcecraft`; web accepts GitHub only. `scaffold` calls that package's
 `scaffold(project: Path)` function. Keep fixture-only code and helper tools in this
 package. It prepares the project; the generated repository's inner CI runs its
 checks. The default fixture makes a tooling-only project testable without adding
@@ -286,8 +287,9 @@ git clone https://github.com/Alexxios/template.git
 ```
 
 Sourcecraft remains supported. This repository retains `.sourcecraft/ci.yaml`
-and its temporary-repository integration workflow. Generated projects can also
-include Sourcecraft CI with `ci_sourcecraft=yes`. A Sourcecraft mirror should
+and integration workflows for templates declaring `[sourcecraft]` in their
+validation configuration. Base and tooling-only projects can include Sourcecraft
+CI with `ci_sourcecraft=yes`; web is GitHub-only. A Sourcecraft mirror should
 follow the GitHub repository.
 
 ## GitHub CI and reports
@@ -338,7 +340,8 @@ push or manual run pushes to its `main` branch. The web fixture exercises two
 services, two libraries, and cross-member imports; its inner CI checks lint, tests,
 and documentation.
 Sourcecraft uses the same fixture interface and generates a `validate-<template>`
-workflow for each template, retaining its configured inner artifacts.
+workflow for each template declaring Sourcecraft support, retaining its configured
+inner artifacts. Web has no Sourcecraft validation workflow.
 
 The base template retains its existing reports. Its pull-request workflow runs
 tests, coverage, Ruff, and the docs PDF build. On pushes, its inner CI also profiles
@@ -346,7 +349,8 @@ CPU and memory, builds Allure, and publishes reports. The outer `validate-base.y
 workflow republishes the downloaded reports to this repository's Pages site on
 `main`/`master`. Web default-branch CI uploads a Pages artifact with its MkDocs site
 and test reports; outer validation extracts and retains it in `generated-web-ci`.
-Web PR CI retains JUnit and coverage reports as `check-reports`.
+Web PR CI retains native test/coverage data, Allure, and per-member reports as
+`check-reports`, without updating Allure history.
 The generated web default-branch workflow deploys its documentation and reports
 to Pages; outer validation enables Pages on the temporary repository and retains
 the site artifact without deploying it over this collection's reports.
