@@ -7,7 +7,5 @@
   "version": "0.1.0",
   "python_version": "3.14",
   "python_min_version": "3.14",
-  "license": ["MIT", "Apache-2.0", "BSD-3-Clause", "Proprietary"],
-  "ci_github": ["yes", "no"],
-  "ci_sourcecraft": ["no", "yes"]
+  "license": ["MIT", "Apache-2.0", "BSD-3-Clause", "Proprietary"]
 }

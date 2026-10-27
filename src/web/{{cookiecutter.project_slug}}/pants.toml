@@ -1,0 +1,18 @@
+[GLOBAL]
+pants_version = "2.33.1"
+backend_packages = ["pants.backend.python"]
+build_ignore = ["templates/**", ".venvs/**", "reports/**", "site/**"]
+
+[source]
+root_patterns = ["/", "services/*/src", "libs/*/src"]
+
+[python]
+interpreter_constraints = [">={{cookiecutter.python_min_version}}"]
+# Pants infers first-party imports; uv owns installation and lockfiles.
+enable_resolves = false
+
+[python-infer]
+unowned_dependency_behavior = "ignore"
+
+[anonymous-telemetry]
+enabled = false

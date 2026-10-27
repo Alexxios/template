@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -15,8 +17,9 @@ def scaffold(project: Path) -> None:
         ("lib", "storage"),
     ):
         subprocess.run(
-            [sys.executable, str(project / f"scripts/new_{kind}.py"), name],
+            [str(Path(sys.prefix) / "bin/just"), f"new-{kind}", name],
             cwd=project,
+            env={**os.environ, "PYTHON": shlex.quote(sys.executable)},
             check=True,
         )
 

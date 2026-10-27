@@ -1,0 +1,46 @@
+version: 2
+updates:
+- package-ecosystem: github-actions
+  directory: /
+  schedule:
+    interval: weekly
+  groups:
+    github-actions:
+      patterns:
+      - '*'
+- package-ecosystem: npm
+  directory: /.github
+  schedule:
+    interval: weekly
+  versioning-strategy: increase
+  groups:
+    reporting:
+      patterns:
+      - '*'
+- package-ecosystem: uv
+  directory: /
+  schedule:
+    interval: weekly
+  versioning-strategy: increase
+  groups:
+    python-dependencies:
+      patterns:
+      - '*'
+- package-ecosystem: pre-commit
+  directory: /
+  schedule:
+    interval: weekly
+  groups:
+    pre-commit-hooks:
+      patterns:
+      - '*'
+- package-ecosystem: docker
+  directories:
+  - /services/*
+  - /templates/service/*cookiecutter.package_name*
+  schedule:
+    interval: weekly
+  groups:
+    service-images:
+      patterns:
+      - '*'

@@ -25,6 +25,8 @@ def main(package: Path, scaffold: Callable[[Path], None]) -> None:
         return
 
     config = tomllib.loads((package / "validation.toml").read_text())
+    if args.ci not in config:
+        parser.error(f"The {config['template']} template does not support {args.ci} CI")
     cookiecutter(
         str(package.parents[1]),
         directory=f"src/{config['template']}",

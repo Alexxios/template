@@ -1,0 +1,25 @@
+{% raw %}{% macro badges(path) -%}
+![lint](https://img.shields.io/badge/lint-not%20published-lightgrey)
+![tests](https://img.shields.io/badge/tests-not%20published-lightgrey)
+![coverage](https://img.shields.io/badge/coverage-not%20published-lightgrey)
+{%- endmacro %}{% endraw %}
+# {{cookiecutter.project_name}}
+
+{% raw %}{{ project.description }}
+
+## Services
+
+| Service | Badges |
+| --- | --- |
+{% for member in services %}
+| [{{ member.name }}]({{ member.path }}/) | {{ badges(member.path) | replace("\n", " ") }} |
+{% endfor %}
+
+## Libraries
+
+| Library | Badges |
+| --- | --- |
+{% for member in libs %}
+| [{{ member.name }}]({{ member.path }}/) | {{ badges(member.path) | replace("\n", " ") }} |
+{% endfor %}
+{% endraw %}

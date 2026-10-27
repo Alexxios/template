@@ -71,7 +71,7 @@ workflows:
                 REPO_SLUG="$(cat .ci_[[ item.package ]]_repo_slug)"
                 TEMPLATE_DIR="$(pwd)"
                 PROJECT_DIR="$(mktemp -d)/ci-test-project"
-                apt-get update && apt-get install -y --no-install-recommends git
+                apt-get update && apt-get install -y --no-install-recommends git make
                 python -m pip install uv
                 uv sync --extra dev
                 uv run python -m tests.[[ item.package ]] render "$PROJECT_DIR" --ci sourcecraft

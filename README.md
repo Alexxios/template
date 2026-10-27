@@ -108,7 +108,7 @@ cookiecutter . --directory src/web
 ```
 
 The web template provides empty `services/`, `libs/`, and integration `tests/`
-directories in a Python 3.14 uv workspace. It keeps the tooling seed's Makefile,
+directories in a Python 3.14 uv workspace. It includes a justfile,
 LICENSE, pre-commit, MkDocs, pytest/coverage, and Ruff configuration. Infrastructure
 starters live in `infra/` (empty Compose files, `k8s/`, and `nginx/`).
 
@@ -116,29 +116,66 @@ After generation:
 
 ```bash
 cd <project_slug>
-make bootstrap
+uv tool install rust-just
+just bootstrap
 uv run pre-commit install
-uv run python scripts/new_service.py api
-uv run python scripts/new_lib.py common
+just new-service api
+just new-lib common
 uv add --package api ./libs/common
-make bootstrap
-make check
+just bootstrap
+just check
 ```
 
-Names above are examples. Each helper creates an installable package with its own
+Names above are examples. Each creation command creates an installable package with its own
 `src/<name>/`, tests, and `pyproject.toml`. Services also get a Dockerfile and a
 placeholder entry point; choose the framework and implement startup yourself.
-`templates/member/` controls future scaffolds. Commit `uv.lock` after installing.
-An empty workspace has no tests, so scaffold members or add integration tests
-before running `make check`.
+`templates/service/` and `templates/lib/` independently control future scaffolds.
+Pass a second argument, such as `just new-service api "API service"`, for a custom
+description. Creation uses the shared `scripts/new_workspace_member.py` helper
+and refuses duplicate names.
+Each member README gets direct Shields lint, test, and coverage links from its
+Cookiecutter template and remains editable. Creation regenerates the entire
+workspace README from `templates/readme/README.md.jinja`, which includes
+`header.md.jinja` for the services/libraries tables and badges. Edit those Jinja
+templates and run `just codegen`; run it after manual member additions, removals,
+renames, or badge URL changes too. `just check-generated` checks for drift.
+Each member has editable pytest configuration for its own `tests/` and `src/`.
+Root pytest configuration is for integration tests. `just check services/api`
+checks one member; `just check` runs all members and integration separately.
+Each test scope uses a separate environment and produces its own native reports.
+Shared tooling is installed by `just bootstrap`; commit the shared `uv.lock`.
 
-GitHub CI is enabled by default. Pull requests use `pull-request.yml` and retain
-`check-reports`. The repository's default branch uses `ci.yml` and also uploads a
-`github-pages` artifact containing the MkDocs site and test reports. The workflow
-reads the default branch from the repository settings. Sourcecraft CI remains
-available with `ci_sourcecraft=yes` and runs the same checks.
-The web template does not use the base-only `package_name`, `init_git`, or
-`ci_gitlab` settings.
+The web template supports GitHub Actions only and asks for no repository or URL.
+Badges start as **not published**. After enabling GitHub Actions as the Pages
+source, the one-time setup workflow opens a PR binding README links to the actual
+Pages URL. That PR also binds the service, library, and workspace README templates
+and deletes both its workflow and `scripts/bind_badges.py`. Future members render
+links directly from the templates. It uses the built-in `GITHUB_TOKEN`; enable
+**Allow GitHub Actions to create and approve pull requests** under
+Settings → Actions → General.
+No custom token or secret is required. The setup PR's checks may await approval.
+
+Pants discovers CI targets and infers dependencies from Python imports using each
+member's scaffolded `BUILD` file. PRs check changed members and their transitive
+dependents, plus integration. Shared changes, deletions, and default-branch runs
+check every member. Jobs use `fail-fast: false`; uv and Just still execute checks.
+Use `pants dependencies --transitive services/api:member` or
+`pants dependents --transitive libs/common::` to inspect the native graph.
+Declare relationships that cannot be inferred from imports explicitly in `BUILD`.
+A reporting job collects artifacts and builds member pages, badges, coverage,
+and separate Allure reports/history under `/reports/services/<name>/` and
+`/reports/libs/<name>/`. Integration results stay under `/reports/integration/`
+and do not contribute to member coverage badges. Default-branch CI deploys Pages;
+PRs retain artifacts without deploying or updating history. Failed checks still
+publish results when report generation succeeds, while keeping failure status.
+
+Creation refreshes the workspace README through its Jinja templates. Normal
+`just codegen` preserves existing member READMEs; the setup script only changes
+badge lines. See the generated `docs/ci-reports.md` for the full lifecycle.
+Dependabot updates Python dependencies, Actions, hooks, Allure, and service images.
+
+The web template does not use the base-only `package_name`, `init_git`, or CI
+provider selection settings.
 
 ## Create a new template
 
@@ -197,7 +234,8 @@ uv run python -m tests.python_lib scaffold /tmp/python-lib-fixture
 ```
 
 `render` invokes Cookiecutter with the package's `[context]` settings and selects
-GitHub or Sourcecraft CI (`--ci sourcecraft`). `scaffold` calls that package's
+a supported CI provider. Base and tooling-only templates also accept
+`--ci sourcecraft`; web accepts GitHub only. `scaffold` calls that package's
 `scaffold(project: Path)` function. Keep fixture-only code and helper tools in this
 package. It prepares the project; the generated repository's inner CI runs its
 checks. The default fixture makes a tooling-only project testable without adding
@@ -208,8 +246,9 @@ reporting, and Sourcecraft workflow/task/cube artifacts. Both base and web use
 `ci.yml` on the default branch and `pull-request.yml` for PRs. The
 `push_artifact_format` setting tells validation to extract a Pages archive
 (`pages`) or collect ordinary report files (`directory`). `publish_pages` enables
-Pages setup and outer deployment; only base enables it. Web uploads and validates
-its Pages artifact without deploying it. Edit the shared sources in
+Pages setup and outer deployment; only base enables it. Web sets `enable_pages`
+to deploy within its generated test repository and retains the Pages artifact
+without outer deployment. Edit the shared sources in
 `templates/validation/` or the package configuration, then sync; generated workflow edits are
 replaced on the next sync.
 
@@ -265,8 +304,9 @@ git clone https://github.com/Alexxios/template.git
 ```
 
 Sourcecraft remains supported. This repository retains `.sourcecraft/ci.yaml`
-and its temporary-repository integration workflow. Generated projects can also
-include Sourcecraft CI with `ci_sourcecraft=yes`. A Sourcecraft mirror should
+and integration workflows for templates declaring `[sourcecraft]` in their
+validation configuration. Base and tooling-only projects can include Sourcecraft
+CI with `ci_sourcecraft=yes`; web is GitHub-only. A Sourcecraft mirror should
 follow the GitHub repository.
 
 ## GitHub CI and reports
@@ -317,7 +357,8 @@ push or manual run pushes to its `main` branch. The web fixture exercises two
 services, two libraries, and cross-member imports; its inner CI checks lint, tests,
 and documentation.
 Sourcecraft uses the same fixture interface and generates a `validate-<template>`
-workflow for each template, retaining its configured inner artifacts.
+workflow for each template declaring Sourcecraft support, retaining its configured
+inner artifacts. Web has no Sourcecraft validation workflow.
 
 The base template retains its existing reports. Its pull-request workflow runs
 tests, coverage, Ruff, and the docs PDF build. On pushes, its inner CI also profiles
@@ -325,7 +366,11 @@ CPU and memory, builds Allure, and publishes reports. The outer `validate-base.y
 workflow republishes the downloaded reports to this repository's Pages site on
 `main`/`master`. Web default-branch CI uploads a Pages artifact with its MkDocs site
 and test reports; outer validation extracts and retains it in `generated-web-ci`.
-Web PR CI retains JUnit and coverage as `check-reports`.
+Web PR CI retains native test/coverage data, Allure, and per-member reports as
+`check-reports`, without updating Allure history.
+The generated web default-branch workflow deploys its documentation and reports
+to Pages; outer validation enables Pages on the temporary repository and retains
+the site artifact without deploying it over this collection's reports.
 
 ### Integration credentials
 
@@ -393,7 +438,9 @@ pre-commit hooks. The workflow directory rules cover both generated workflows,
 including `pull-request.yml`. The tooling seed in `templates/cookiecutter/`
 has matching Actions, dependency-manifest, and pre-commit update rules.
 
-Base projects generated with `ci_github=yes` also include `.github/dependabot.yml`.
+Base and metatemplate projects generated with `ci_github=yes`, and all web projects,
+include `.github/dependabot.yml`. Metatemplate projects cover Actions, uv, and hooks;
+web adds Allure and service container images. Base projects retain their existing setup.
 They receive weekly updates for GitHub Actions, Python dependencies through uv
 (including `uv.lock` when committed), Allure CLI through npm, and pre-commit hooks.
 The reporting workflow installs the Allure version declared in `.github/package.json`.

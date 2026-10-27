@@ -2,37 +2,17 @@
 
 {{cookiecutter.description}}
 
-## Workspace
+This is a uv workspace with independently scaffolded services and libraries.
+Use `just new-service api` and `just new-lib common` to create members
+and regenerate the README tables. No repository is needed to start locally.
 
-- `services/`: independently installable applications, created with `scripts/new_service.py`.
-- `libs/`: shared packages, created with `scripts/new_lib.py`.
-- `tests/`: integration tests across members.
-- `infra/`: Compose files, Kubernetes manifests, and nginx configuration.
+`just check services/api` checks one member in its own environment.
+`just check` checks all members and the separate integration scope.
+Member pytest configuration discovers only its `tests/` and measures its `src/`.
+Edit `templates/readme/*.jinja` for workspace documentation and run `just codegen`.
+Member READMEs contain direct badge links and remain editable.
 
-Start with `make bootstrap`, scaffold members, then run `make bootstrap` again.
-Run `make check` for Ruff, all workspace tests with coverage, and this documentation.
-A workspace with no tests fails the test check until tests are added.
-
-```bash
-uv run python scripts/new_service.py api
-uv run python scripts/new_lib.py common
-uv add --package api ./libs/common
-make bootstrap
-make check
-```
-
-Each member uses a `src/` layout and has its own metadata and tests. Add runtime
-dependencies with `uv add --package <name> <dependency>` and commit `uv.lock`.
-The root package is virtual; tooling is configured in its `pyproject.toml`.
-Service entry points are placeholders to replace with your application startup.
-
-## CI reports
-
-GitHub pull requests run `pull-request.yml` and retain `check-reports`. The default
-branch runs `ci.yml` and also uploads `github-pages`, a Pages artifact containing
-this documentation site and the test reports. After extracting its `artifact.tar`,
-open `index.html` for the docs or `reports/coverage/index.html` for coverage.
-Raw reports are at `reports/junit.xml` and `reports/coverage.xml`.
-
-The default branch is read from the repository settings, so renaming it does not
-require editing the workflow. Artifact upload does not deploy a Pages site.
+GitHub CI uses independent member jobs. See [CI reports](ci-reports.md) for
+Pages layout, Allure history, and the one-time PR that binds README and template
+badges and deletes its workflow and binding script. Dependabot maintains
+generated project dependencies weekly.

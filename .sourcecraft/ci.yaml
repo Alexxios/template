@@ -18,20 +18,6 @@ on:
           - ".python-version"
           - "templates/validation/sourcecraft.yaml.jinja"
           - "scripts/sourcecraft_repo.py"
-    - workflows: [validate-web]
-      filter:
-        branches: [main, master]
-        paths:
-          - "src/web/**"
-          - "tests/web/**"
-          - "tests/__init__.py"
-          - "tests/support.py"
-          - "scripts/sync_templates.py"
-          - "pyproject.toml"
-          - "uv.lock"
-          - ".python-version"
-          - "templates/validation/sourcecraft.yaml.jinja"
-          - "scripts/sourcecraft_repo.py"
   pull_request:
     - workflows: [check-repository]
     - workflows: [validate-base]
@@ -39,19 +25,6 @@ on:
         paths:
           - "src/base/**"
           - "tests/base/**"
-          - "tests/__init__.py"
-          - "tests/support.py"
-          - "scripts/sync_templates.py"
-          - "pyproject.toml"
-          - "uv.lock"
-          - ".python-version"
-          - "templates/validation/sourcecraft.yaml.jinja"
-          - "scripts/sourcecraft_repo.py"
-    - workflows: [validate-web]
-      filter:
-        paths:
-          - "src/web/**"
-          - "tests/web/**"
           - "tests/__init__.py"
           - "tests/support.py"
           - "scripts/sync_templates.py"
@@ -107,7 +80,7 @@ workflows:
                 REPO_SLUG="$(cat .ci_base_repo_slug)"
                 TEMPLATE_DIR="$(pwd)"
                 PROJECT_DIR="$(mktemp -d)/ci-test-project"
-                apt-get update && apt-get install -y --no-install-recommends git
+                apt-get update && apt-get install -y --no-install-recommends git make
                 python -m pip install uv
                 uv sync --extra dev
                 uv run python -m tests.base render "$PROJECT_DIR" --ci sourcecraft
@@ -174,99 +147,4 @@ workflows:
                 if [ -f .ci_base_repo_slug ]; then
                   python scripts/sourcecraft_repo.py delete \
                     --org-slug "$SOURCECRAFT_ORG_SLUG" --repo-slug "$(cat .ci_base_repo_slug)"
-                fi
-
-  validate-web:
-    runs_on: serverless
-    tasks:
-      - name: generate-and-validate
-        cubes:
-          - name: create-repo
-            image: docker.io/library/python:3.14-slim
-            env:
-              SOURCECRAFT_ORG_SLUG: lexxi-0
-              SOURCECRAFT_API_TOKEN: ${{ secrets.ci }}
-            script:
-              - |
-                set -eu
-                REPO_SLUG="ci-web-${SOURCECRAFT_ORG_SLUG}-$(date +%s)-$$"
-                python scripts/sourcecraft_repo.py create \
-                  --org-slug "$SOURCECRAFT_ORG_SLUG" --repo-slug "$REPO_SLUG" \
-                  --visibility private --description "Ephemeral web template validation"
-                echo "$REPO_SLUG" > .ci_web_repo_slug
-
-          - name: scaffold-and-push
-            image: docker.io/library/python:3.14-slim
-            env:
-              SOURCECRAFT_ORG_SLUG: lexxi-0
-              SOURCECRAFT_API_TOKEN: ${{ secrets.ci }}
-            script:
-              - |
-                set -eu
-                REPO_SLUG="$(cat .ci_web_repo_slug)"
-                TEMPLATE_DIR="$(pwd)"
-                PROJECT_DIR="$(mktemp -d)/ci-test-project"
-                apt-get update && apt-get install -y --no-install-recommends git
-                python -m pip install uv
-                uv sync --extra dev
-                uv run python -m tests.web render "$PROJECT_DIR" --ci sourcecraft
-                uv run python -m tests.web scaffold "$PROJECT_DIR"
-                cd "$PROJECT_DIR"
-                test -f .sourcecraft/ci.yaml
-                test ! -e .github
-                git init -b main
-                git config user.name "CI Bot"
-                git config user.email "ci@sourcecraft.dev"
-                git add -A
-                git commit -m "Scaffold web integration fixture"
-                git remote add origin "https://git@git.sourcecraft.dev/${SOURCECRAFT_ORG_SLUG}/${REPO_SLUG}.git"
-                git -c credential.helper='!f() { echo "username=git"; echo "password=$SOURCECRAFT_API_TOKEN"; }; f' push -u origin main
-                touch "$TEMPLATE_DIR/.ci_web_pushed"
-
-          - name: wait-for-ci
-            image: docker.io/library/python:3.14-slim
-            env:
-              SOURCECRAFT_ORG_SLUG: lexxi-0
-              SOURCECRAFT_API_TOKEN: ${{ secrets.ci }}
-            script:
-              - |
-                set -eu
-                python scripts/sourcecraft_repo.py cicd-wait \
-                  --org-slug "$SOURCECRAFT_ORG_SLUG" --repo-slug "$(cat .ci_web_repo_slug)" \
-                  --polling-interval 15 --max-attempts 120
-
-          - name: collect-reports
-            image: docker.io/library/python:3.14-slim
-            if: always()
-            env:
-              SOURCECRAFT_ORG_SLUG: lexxi-0
-              SOURCECRAFT_API_TOKEN: ${{ secrets.ci }}
-            script:
-              - |
-                set -eu
-                if [ -f .ci_web_pushed ]; then
-                  python scripts/sourcecraft_repo.py cicd-artifacts \
-                    --org-slug "$SOURCECRAFT_ORG_SLUG" --repo-slug "$(cat .ci_web_repo_slug)" \
-                    --workflow-slug ci --task-slug check --cube-slug tooling \
-                    --output-dir web-ci
-                  test -s web-ci/reports/junit.xml
-                  test -s web-ci/reports/coverage.xml
-                fi
-            artifacts:
-              paths:
-                - ./web-ci/reports/junit.xml
-                - ./web-ci/reports/coverage.xml
-
-          - name: delete-repo
-            image: docker.io/library/python:3.14-slim
-            if: always()
-            env:
-              SOURCECRAFT_ORG_SLUG: lexxi-0
-              SOURCECRAFT_API_TOKEN: ${{ secrets.ci }}
-            script:
-              - |
-                set -eu
-                if [ -f .ci_web_repo_slug ]; then
-                  python scripts/sourcecraft_repo.py delete \
-                    --org-slug "$SOURCECRAFT_ORG_SLUG" --repo-slug "$(cat .ci_web_repo_slug)"
                 fi

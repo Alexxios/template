@@ -1,0 +1,5 @@
+{
+  "package_name": "new_service",
+  "description": "A workspace service",
+  "version": "{{cookiecutter.version}}"
+}

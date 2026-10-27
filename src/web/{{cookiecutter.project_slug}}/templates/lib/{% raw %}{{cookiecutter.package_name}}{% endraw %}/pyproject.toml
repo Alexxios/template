@@ -1,0 +1,32 @@
+{% from "dependencies/pyproject.toml" import package_build -%}
+[project]
+{% raw %}name = {{ cookiecutter.package_name | tojson }}
+version = {{ cookiecutter.version | tojson }}
+description = {{ cookiecutter.description | tojson }}{% endraw %}
+authors = [{ name = "{{cookiecutter.author_name}}", email = "{{cookiecutter.author_email}}" }]
+readme = "README.md"
+requires-python = ">={{cookiecutter.python_min_version}}"
+license = "{% if cookiecutter.license == 'Proprietary' %}LicenseRef-Proprietary{% else %}{{cookiecutter.license}}{% endif %}"
+dependencies = []
+
+{{ package_build() }}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--import-mode=importlib --cov --cov-report=term-missing --cov-report=html:../../reports/libs/{% raw %}{{cookiecutter.package_name}}{% endraw %}/coverage --cov-report=xml:../../reports/libs/{% raw %}{{cookiecutter.package_name}}{% endraw %}/coverage.xml --cov-report=json:../../reports/libs/{% raw %}{{cookiecutter.package_name}}{% endraw %}/coverage.json --junitxml=../../reports/libs/{% raw %}{{cookiecutter.package_name}}{% endraw %}/junit.xml --alluredir=../../reports/libs/{% raw %}{{cookiecutter.package_name}}{% endraw %}/allure-results --clean-alluredir"
+
+[tool.coverage.run]
+source = ["src"]
+data_file = "../../reports/libs/{% raw %}{{cookiecutter.package_name}}{% endraw %}/.coverage"
+branch = true
+relative_files = true
+
+[tool.coverage.report]
+include_namespace_packages = true
+show_missing = true

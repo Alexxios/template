@@ -11,9 +11,15 @@ dist/
 
 # Virtual environments
 .venv/
+.venvs/
+.allure-history/
 venv/
 env/
 node_modules/
+
+# Pants caches
+.pants.d/
+.pids/
 
 # Test / coverage
 .pytest_cache/
@@ -25,6 +31,8 @@ coverage.xml
 allure-results/
 allure-report/
 reports/
+!templates/reports/
+!templates/reports/**
 prof/
 
 # Tox

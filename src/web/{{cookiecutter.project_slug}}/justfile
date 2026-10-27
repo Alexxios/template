@@ -1,0 +1,129 @@
+{% raw -%}
+uv := env("UV", "uv")
+python := env("PYTHON", quote(uv) + " run --group dev python")
+scope_python := env("SCOPE_PYTHON", quote(uv) + ' run --exact $package_option --group dev python')
+just := quote(just_executable()) + " --justfile " + quote(justfile())
+
+# List available commands.
+help:
+    @{{ just }} --list
+
+# Install shared development/documentation tools.
+bootstrap:
+    @test -f .env || cp .env.example .env
+    {{ quote(uv) }} sync --group dev --group docs
+
+# Create a service, with an optional description.
+new-service $name $description="":
+    {{ python }} scripts/new_workspace_member.py service "$name" --description "$description"
+
+# Create a library, with an optional description.
+new-lib $name $description="":
+    {{ python }} scripts/new_workspace_member.py lib "$name" --description "$description"
+
+# Test one member or integration; omit scope to test everything separately.
+test $scope="": (_validate scope)
+    #!/usr/bin/env bash
+    set -eu
+    if [[ -z "$scope" ]]; then exec {{ just }} _all test; fi
+    root="$PWD"
+    report_dir="$root/reports/$scope"
+    mkdir -p "$report_dir"
+    rm -rf "$report_dir/coverage" "$report_dir/allure-results"
+    rm -f "$report_dir/"{junit.xml,coverage.json,coverage.xml,.coverage,test.exit}
+    package_option=""
+    if [[ "$scope" == integration ]]; then
+        package_option="--all-packages"
+    else
+        cd "$scope"
+    fi
+    export UV_PROJECT_ENVIRONMENT="$root/.venvs/$scope"
+    status=0
+    {{ scope_python }} -m pytest tests || status=$?
+    printf '%s\n' "$status" > "$report_dir/test.exit"
+    if [[ "$scope" == integration && "$status" == 5 ]]; then exit 0; fi
+    exit "$status"
+
+# Lint one member or integration; omit scope to lint everything separately.
+lint $scope="": (_validate scope)
+    #!/usr/bin/env bash
+    set -eu
+    if [[ -z "$scope" ]]; then exec {{ just }} _all lint; fi
+    report_dir="$PWD/reports/$scope"
+    paths=("$scope")
+    if [[ "$scope" == integration ]]; then paths=(scripts tests); fi
+    mkdir -p "$report_dir"
+    rm -f "$report_dir/"{ruff.json,ruff-format.json,lint.exit,format.exit}
+    status=0
+    {{ python }} -m ruff check "${paths[@]}" --output-format=json --output-file="$report_dir/ruff.json" || status=$?
+    printf '%s\n' "$status" > "$report_dir/lint.exit"
+    format_status=0
+    {{ python }} -m ruff format --check "${paths[@]}" --output-format=json > "$report_dir/ruff-format.json" || format_status=$?
+    printf '%s\n' "$format_status" > "$report_dir/format.exit"
+    cat "$report_dir/ruff.json" "$report_dir/ruff-format.json" || true
+    test "$status" = 0 && test "$format_status" = 0
+
+# Run lint and tests for a scope, or all checks including codegen and docs.
+check $scope="": (_validate scope)
+    #!/usr/bin/env bash
+    set -eu
+    status=0
+    if [[ -z "$scope" ]]; then
+        {{ just }} check-generated || status=1
+        {{ just }} docs || status=1
+    fi
+    {{ just }} lint "$scope" || status=1
+    {{ just }} test "$scope" || status=1
+    exit "$status"
+
+# Format one member or integration; omit scope to format all code.
+format $scope="": (_validate scope)
+    #!/usr/bin/env bash
+    set -eu
+    paths=("${scope:-.}")
+    if [[ "$scope" == integration ]]; then paths=(scripts tests); fi
+    {{ python }} -m ruff format "${paths[@]}"
+
+# Build documentation.
+docs:
+    {{ quote(uv) }} run --group docs mkdocs build --strict
+
+# Serve documentation locally.
+serve:
+    {{ quote(uv) }} run --group docs mkdocs serve
+
+# Render the workspace README.
+codegen:
+    {{ python }} scripts/codegen.py
+
+# Check the generated README without writing.
+check-generated:
+    {{ python }} scripts/codegen.py --check
+
+# Build report pages and badges from existing results.
+reports:
+    {{ python }} scripts/build_reports.py
+
+# Validate before touching any report paths, even when Python tools cannot start.
+_validate $scope:
+    #!/usr/bin/env bash
+    set -eu
+    if [[ -z "$scope" || "$scope" == integration ]]; then exit 0; fi
+    for manifest in services/*/pyproject.toml libs/*/pyproject.toml; do
+        if [[ -f "$manifest" && "${manifest%/pyproject.toml}" == "$scope" ]]; then exit 0; fi
+    done
+    printf 'Unknown scope: %s. Use services/<name>, libs/<name>, or integration.\n' "$scope" >&2
+    exit 1
+
+# Run every scope even after a failure.
+_all $command:
+    #!/usr/bin/env bash
+    set -eu
+    status=0
+    for manifest in services/*/pyproject.toml libs/*/pyproject.toml; do
+        [[ -f "$manifest" ]] || continue
+        {{ just }} "$command" "${manifest%/pyproject.toml}" || status=1
+    done
+    {{ just }} "$command" integration || status=1
+    exit "$status"
+{% endraw -%}
