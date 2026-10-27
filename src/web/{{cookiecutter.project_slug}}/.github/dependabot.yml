@@ -44,3 +44,11 @@ updates:
     service-images:
       patterns:
       - '*'
+- package-ecosystem: docker-compose
+  directory: /infra
+  schedule:
+    interval: weekly
+  groups:
+    infrastructure-images:
+      patterns:
+      - '*'

@@ -3,6 +3,25 @@
 name = "template-web-tooling"
 version = "0.1.0"
 
+# {% macro project_dependencies() %}
+dependencies = [
+    "fastapi>=0.162.0",
+    "sqlalchemy>=2.1.6",
+    "pydantic>=2.14.1",
+    "pydantic-settings>=2.16.1",
+    "celery>=5.6.3",
+    "structlog>=26.1.0",
+    "sentry-sdk>=2.73.0",
+    "prometheus-client>=0.26.0",
+    "opentelemetry-api>=1.45.1",
+    "opentelemetry-sdk>=1.45.1",
+    "opentelemetry-exporter-otlp-proto-http>=1.45.1",
+    "opentelemetry-instrumentation-fastapi>=0.66b1",
+    "opentelemetry-instrumentation-sqlalchemy>=0.66b1",
+    "opentelemetry-instrumentation-celery>=0.66b1",
+]
+# End of shared runtime dependencies. {% endmacro %}
+
 # {% macro project_tooling() %}
 [dependency-groups]
 dev = [

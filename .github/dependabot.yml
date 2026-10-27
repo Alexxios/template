@@ -33,6 +33,16 @@ updates:
       template-reporting:
         patterns: ["*"]
 
+  # Monitoring images used by generated web workspaces.
+  - package-ecosystem: docker-compose
+    directories:
+      - "/src/web/*cookiecutter.project_slug*/infra"
+    schedule:
+      interval: weekly
+    groups:
+      template-infrastructure:
+        patterns: ["*"]
+
   # Tools used to generate and validate projects in the outer CI.
   - package-ecosystem: uv
     directory: /
