@@ -4,7 +4,29 @@ name: Validate base
 on:
   push:
     branches: [main, master]
+    paths:
+      - "src/base/**"
+      - "tests/base/**"
+      - "tests/__init__.py"
+      - "tests/support.py"
+      - "scripts/sync_templates.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".python-version"
+      - "templates/validation/github.yml.jinja"
+      - ".github/workflows/validate-base.yml"
   pull_request:
+    paths:
+      - "src/base/**"
+      - "tests/base/**"
+      - "tests/__init__.py"
+      - "tests/support.py"
+      - "scripts/sync_templates.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".python-version"
+      - "templates/validation/github.yml.jinja"
+      - ".github/workflows/validate-base.yml"
   workflow_dispatch:
 
 permissions:

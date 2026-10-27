@@ -274,7 +274,34 @@ follow the GitHub repository.
 `.github/workflows/ci.yml` checks the metatemplate's tests, lint, docs, and generated
 file consistency. Each template has a separate generated workflow:
 `validate-base.yml`, `validate-web.yml`, and one for every newly registered
-template. Each runs on pushes to `main`/`master`, pull requests, and manual dispatch.
+template. Pushes to `main`/`master` and pull requests trigger only the validations
+whose path filters match the changed files:
+
+- `src/<template>/**` and `tests/<package>/**` trigger that template's validation.
+- Shared fixture helpers (`tests/__init__.py`, `tests/support.py`), the workflow
+  generator, root `pyproject.toml`, `uv.lock`, and `.python-version` trigger all
+  template validations.
+- Each provider's shared workflow source triggers all its validations. A generated
+  GitHub validation workflow triggers its own validation; the Sourcecraft API
+  helper triggers Sourcecraft validations.
+
+README, license, and repository-docs changes run the metatemplate checks without
+creating temporary repositories. The project seed and fixture-package seed affect
+future templates; existing snapshots are validated when their own files change.
+New templates receive these filters automatically. GitHub manual dispatch remains
+available for any template regardless of changed paths.
+
+Sourcecraft uses separate filtered triggers for each template. Its combined
+generated `.sourcecraft/ci.yaml` is deliberately excluded from the path filters,
+so regenerating it for one template does not trigger unrelated validations. Its
+source, generator, and per-template settings are watched instead; repository
+checks always verify that generated files are current.
+
+GitHub evaluates PR paths against the full PR diff. Path-skipped workflows can
+leave required checks pending, so these workflows cannot serve as unconditional
+required checks without a job-level gate. See the
+[GitHub path-filter documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow#using-filters-to-target-specific-paths-for-pull-request-or-push-events)
+and [Sourcecraft trigger reference](https://sourcecraft.dev/portal/docs/en/sourcecraft/ci-cd-ref/on).
 
 Each template's validation workflow:
 
