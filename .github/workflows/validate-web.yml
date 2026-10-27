@@ -4,7 +4,29 @@ name: Validate web
 on:
   push:
     branches: [main, master]
+    paths:
+      - "src/web/**"
+      - "tests/web/**"
+      - "tests/__init__.py"
+      - "tests/support.py"
+      - "scripts/sync_templates.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".python-version"
+      - "templates/validation/github.yml.jinja"
+      - ".github/workflows/validate-web.yml"
   pull_request:
+    paths:
+      - "src/web/**"
+      - "tests/web/**"
+      - "tests/__init__.py"
+      - "tests/support.py"
+      - "scripts/sync_templates.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".python-version"
+      - "templates/validation/github.yml.jinja"
+      - ".github/workflows/validate-web.yml"
   workflow_dispatch:
 
 permissions:

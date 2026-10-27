@@ -139,7 +139,21 @@ template and its resulting project. Add template-specific tests when a new
 template's structure or inputs diverge from the starter.
 
 Each template has an independent GitHub validation workflow and a Sourcecraft
-workflow. They render and scaffold via the template's test package, create a
+workflow. Automatic validation is filtered by changed paths: `src/<template>/**`
+and `tests/<package>/**` select that template, while shared fixture helpers, root
+dependencies/Python version, and the workflow generator select all templates.
+Provider-specific workflow sources select all validations for that provider.
+GitHub also watches each generated validation workflow; Sourcecraft watches its
+API helper and the sources of its combined generated configuration.
+
+Repository docs and license changes only run metatemplate checks. Seed changes
+affect future templates, so they do not trigger validation of existing snapshots.
+GitHub manual runs remain available. These filters are generated automatically
+for new templates. GitHub compares the full PR diff and can leave path-skipped
+required checks pending; see its
+[path-filter documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow#using-filters-to-target-specific-paths-for-pull-request-or-push-events).
+
+Selected workflows render and scaffold via the template's test package, create a
 temporary repository, wait for its configured inner CI, collect results, and
 delete the repository. Results are retained as `generated-<template>-ci` on GitHub.
 An inner failure fails its outer workflow. Repository tests, lint, documentation,
