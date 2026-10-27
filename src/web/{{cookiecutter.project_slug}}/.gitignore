@@ -17,6 +17,10 @@ venv/
 env/
 node_modules/
 
+# Pants caches
+.pants.d/
+.pids/
+
 # Test / coverage
 .pytest_cache/
 .coverage

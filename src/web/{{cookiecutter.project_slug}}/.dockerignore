@@ -1,5 +1,8 @@
 .git
 .venv
+.venvs
+.pants.d
+.pids
 **/__pycache__
 **/*.egg-info
 .pytest_cache

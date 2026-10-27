@@ -6,6 +6,9 @@ on:
       publish:
         type: boolean
         default: false
+      changed-since:
+        type: string
+        default: ""
     outputs:
       pages-ready:
         value: ${{ jobs.reports.outputs.pages-ready }}
@@ -16,17 +19,43 @@ permissions:
 jobs:
   discover:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     outputs:
       matrix: ${{ steps.members.outputs.matrix }}
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
           python-version: "{% endraw %}{{cookiecutter.python_version}}{% raw %}"
+      - name: Initialize Pants
+        uses: pantsbuild/actions/init-pants@v11
+        with:
+          pants-ci-config: ""
+          get-pants-version: "0.13.2"
+          named-caches-hash: ${{ hashFiles('pants.toml') }}
       - id: members
-        run: echo "matrix=$(python scripts/workspace.py --matrix)" >> "$GITHUB_OUTPUT"
+        env:
+          CHANGED_SINCE: ${{ inputs.changed-since }}
+          PUBLISH: ${{ inputs.publish }}
+        run: |
+          args=(::)
+          if [ "$PUBLISH" != true ] && [ -n "$CHANGED_SINCE" ]; then
+            base=$(git merge-base HEAD "$CHANGED_SINCE")
+            # Deleted imports no longer have owners in the current Pants graph.
+            # Run everything for deletions, including the old side of renames.
+            if git diff --quiet --no-renames --diff-filter=D "$base" --; then
+              args=(--changed-since="$base" --changed-dependents=transitive)
+            fi
+          fi
+          targets=$(pants "${args[@]}" list)
+          matrix=$(printf '%s\n' "$targets" | jq -Rsc '
+            {include: ([split("\n")[]
+              | capture("^(?<path>(services|libs)/[^/:]+)[/:]").path]
+              + ["integration"] | unique | map({path: ., id: gsub("/"; "-")}))}')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   tooling:
     runs-on: ubuntu-latest
@@ -141,9 +170,10 @@ jobs:
             .github/node_modules/.bin/allure awesome "$output/allure-results" \
               --single-file --output "$output/allure" "${args[@]}"
             if [ "$PUBLISH" = true ]; then cp "$history" "$output/history.jsonl"; fi
-          done < <(python scripts/workspace.py)
+          done < <(python -c 'import json, os; print("\n".join(row["path"] for row in json.loads(os.environ["MATRIX"])["include"]))')
         env:
           PUBLISH: ${{ inputs.publish }}
+          MATRIX: ${{ needs.discover.outputs.matrix }}
       - name: Save Allure history
         if: ${{ inputs.publish }}
         uses: actions/cache/save@v6

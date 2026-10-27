@@ -8,6 +8,36 @@ including an independent `integration` job even when there are no members.
 `fail-fast: false` lets healthy members finish when another fails collection.
 A separate tooling job checks the generated README and builds documentation.
 
+Pants owns the dependency graph and CI target selection. Each member scaffold
+includes a `BUILD` file covering its Python sources, tests, and other files.
+Pants infers first-party dependencies from Python imports. uv continues to own
+package installation and its lockfile; Just runs the existing lint/test commands.
+For runtime relationships that cannot be inferred from imports, add an explicit
+dependency such as `libs/common:member` to the consumer's `python_sources` target
+in its `BUILD` file. Manifest declarations alone do not create Pants graph edges.
+
+PR discovery runs `pants --changed-since=<merge-base> --changed-dependents=transitive list`
+and converts its target addresses into unique member paths with `jq`. Integration
+always runs. Member metadata/assets are dependencies of that member's Python
+targets; shared configuration, lockfiles, and tooling are dependencies of all
+members. Deletions and renames run the full matrix because a removed import may
+no longer have an owner in the current graph. Default-branch publication also
+checks every member, keeping published reports and Allure history complete.
+
+Install the [Pants launcher](https://www.pantsbuild.org/stable/docs/getting-started/installing-pants)
+for local queries; `pants.toml` pins the engine version. CI installs it in discovery.
+There is no generated dependency graph or dependency regeneration command:
+
+```bash
+pants dependencies --transitive services/api:member
+pants dependents --transitive libs/common::
+pants --changed-since=HEAD --changed-dependents=transitive list
+```
+
+See [Pants target selection](https://www.pantsbuild.org/stable/docs/using-pants/advanced-target-selection)
+for native filters and changed-file options. PRs build Allure reports for selected
+scopes only; unselected members have unavailable results in the combined artifact.
+
 The same Just commands run locally and in CI:
 
 ```bash

@@ -3,12 +3,28 @@
 from __future__ import annotations
 
 import argparse
+import re
 import tempfile
 import tomllib
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, TemplateError
-from workspace import ROOT, members
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def members(root: Path = ROOT) -> list[Path]:
+    """Find member directories for README and report rendering."""
+    paths = [
+        path.parent
+        for group in ("services", "libs")
+        for path in sorted((root / group).glob("*/pyproject.toml"))
+        if not path.parent.name.startswith(".")
+    ]
+    for path in paths:
+        if not re.fullmatch(r"[a-z][a-z0-9_]*", path.name):
+            raise ValueError(f"Invalid member directory: {path.relative_to(root)}")
+    return paths
 
 
 def context(root: Path = ROOT) -> dict:

@@ -7,8 +7,8 @@ import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from codegen import ROOT, members
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
-from workspace import ROOT, scopes
 
 REPORTS = ROOT / "reports"
 
@@ -105,7 +105,7 @@ def build() -> None:
         autoescape=True,
         keep_trailing_newline=True,
     )
-    paths = scopes()
+    paths = [member.relative_to(ROOT).as_posix() for member in members()] + ["integration"]
     # Discard reports for removed/renamed members when rebuilding locally.
     for group in ("services", "libs"):
         for directory in (REPORTS / group).glob("*"):

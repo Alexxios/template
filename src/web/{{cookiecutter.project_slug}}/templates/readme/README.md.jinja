@@ -50,7 +50,15 @@ See [infra/README.md](infra/README.md) for the empty infrastructure starters.
 
 ## GitHub setup and reports
 
-CI uses one job per member plus integration tests, and a shared reporting job.
+Pants infers dependencies from Python imports using each member's `BUILD` file.
+PR CI selects changed members and their transitive dependents, plus integration.
+Shared changes, deletions, and default-branch runs check every member. uv and Just
+continue to install packages and run checks. Declare relationships that cannot be
+inferred from imports explicitly in `BUILD`; no graph regeneration is needed.
+With the [Pants launcher](https://www.pantsbuild.org/stable/docs/getting-started/installing-pants)
+installed, use `pants dependencies --transitive services/api:member` or
+`pants dependents --transitive libs/common::` to inspect relationships.
+
 Pull requests retain report artifacts. The default branch publishes documentation,
 member coverage, Allure reports/history, and Shields endpoints to GitHub Pages.
 Each member's badges use only that member's check results. Integration coverage

@@ -9,4 +9,6 @@ permissions:
 jobs:
   checks:
     uses: ./.github/workflows/checks.yml
+    with:
+      changed-since: ${{ github.event.pull_request.base.sha }}
 {% endraw %}

@@ -53,7 +53,13 @@ links directly from the templates. It uses the built-in `GITHUB_TOKEN`; enable
 Settings → Actions → General.
 No custom token or secret is required. The setup PR's checks may await approval.
 
-CI discovers members into independent matrix jobs with `fail-fast: false`.
+Pants discovers CI targets and infers dependencies from Python imports using each
+member's scaffolded `BUILD` file. PRs check changed members and their transitive
+dependents, plus integration. Shared changes, deletions, and default-branch runs
+check every member. Jobs use `fail-fast: false`; uv and Just still execute checks.
+Use `pants dependencies --transitive services/api:member` or
+`pants dependents --transitive libs/common::` to inspect the native graph.
+Declare relationships that cannot be inferred from imports explicitly in `BUILD`.
 A reporting job collects artifacts and builds member pages, badges, coverage,
 and separate Allure reports/history under `/reports/services/<name>/` and
 `/reports/libs/<name>/`. Integration results stay under `/reports/integration/`
