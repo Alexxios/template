@@ -97,7 +97,7 @@ jobs:
               --title "Validate generated project" \
               --body "Integration check for $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           else
-{% if github.publish_pages %}
+{% if github.enable_pages | default(github.publish_pages) %}
             gh api --method POST "repos/$GH_REPO/pages" -f build_type=workflow
 {% endif %}
             git push origin HEAD:refs/heads/main

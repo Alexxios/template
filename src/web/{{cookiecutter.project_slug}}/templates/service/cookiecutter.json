@@ -1,0 +1,6 @@
+{
+  "package_name": "new_service",
+  "description": "A workspace service",
+  "version": "{{cookiecutter.version}}",
+  "reports_url": {{ cookiecutter.reports_url | tojson }}
+}

@@ -111,6 +111,7 @@ jobs:
               --title "Validate generated project" \
               --body "Integration check for $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           else
+            gh api --method POST "repos/$GH_REPO/pages" -f build_type=workflow
             git push origin HEAD:refs/heads/main
           fi
       - name: Wait for generated project CI

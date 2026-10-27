@@ -107,7 +107,7 @@ workflows:
                 REPO_SLUG="$(cat .ci_base_repo_slug)"
                 TEMPLATE_DIR="$(pwd)"
                 PROJECT_DIR="$(mktemp -d)/ci-test-project"
-                apt-get update && apt-get install -y --no-install-recommends git
+                apt-get update && apt-get install -y --no-install-recommends git make
                 python -m pip install uv
                 uv sync --extra dev
                 uv run python -m tests.base render "$PROJECT_DIR" --ci sourcecraft
@@ -206,7 +206,7 @@ workflows:
                 REPO_SLUG="$(cat .ci_web_repo_slug)"
                 TEMPLATE_DIR="$(pwd)"
                 PROJECT_DIR="$(mktemp -d)/ci-test-project"
-                apt-get update && apt-get install -y --no-install-recommends git
+                apt-get update && apt-get install -y --no-install-recommends git make
                 python -m pip install uv
                 uv sync --extra dev
                 uv run python -m tests.web render "$PROJECT_DIR" --ci sourcecraft
@@ -251,11 +251,13 @@ workflows:
                     --output-dir web-ci
                   test -s web-ci/reports/junit.xml
                   test -s web-ci/reports/coverage.xml
+                  test -s web-ci/reports/coverage.json
                 fi
             artifacts:
               paths:
                 - ./web-ci/reports/junit.xml
                 - ./web-ci/reports/coverage.xml
+                - ./web-ci/reports/coverage.json
 
           - name: delete-repo
             image: docker.io/library/python:3.14-slim

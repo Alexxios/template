@@ -74,6 +74,8 @@ def test_web_collects_pages_or_pr_reports_without_deploying(tmp_path, event):
     workflow = yaml.safe_load((ROOT / ".github/workflows/validate-web.yml").read_text())
     assert "publish-reports" not in workflow["jobs"]
     steps = workflow["jobs"]["validate"]["steps"]
+    trigger = next(step for step in steps if step.get("name") == "Trigger generated project's CI")
+    assert 'gh api --method POST "repos/$GH_REPO/pages" -f build_type=workflow' in trigger["run"]
     collect = next(step for step in steps if step.get("id") == "collect")
     fixture = tmp_path / "fixture"
     fixture.mkdir()

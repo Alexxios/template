@@ -18,11 +18,21 @@ jobs:
         with:
           python-version: "{{cookiecutter.python_version}}"
       - name: Install tools
+        id: tools
         run: |
           python -m pip install uv
           make bootstrap
-      - name: Check project
-        run: make check
+      - name: Check generated files
+        run: make check-generated
+      - name: Lint and check formatting
+        if: "{% raw %}${{ !cancelled() && steps.tools.outcome == 'success' }}{% endraw %}"
+        run: make lint
+      - name: Test with coverage
+        if: "{% raw %}${{ !cancelled() && steps.tools.outcome == 'success' }}{% endraw %}"
+        run: make test
+      - name: Build documentation
+        if: "{% raw %}${{ !cancelled() && steps.tools.outcome == 'success' }}{% endraw %}"
+        run: make docs
       - name: Retain test reports
         if: "{% raw %}${{ always() }}{% endraw %}"
         uses: actions/upload-artifact@v7

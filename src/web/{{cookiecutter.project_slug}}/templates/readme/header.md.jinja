@@ -1,0 +1,29 @@
+{% raw %}{% macro badges(path) -%}
+{% for label in ("lint", "tests", "coverage") -%}
+{% if reports_url -%}
+[![{{ label }}](https://img.shields.io/endpoint?url={{ (reports_url ~ "/badges/" ~ path ~ "/" ~ label ~ ".json") | urlencode }})]({{ reports_url }}/{{ "coverage/index.html" if label == "coverage" else label ~ ".json" }})
+{%- else -%}
+![{{ label }}](https://img.shields.io/badge/{{ label }}-not%20run-lightgrey)
+{%- endif %}{{ " " if not loop.last else "" }}
+{%- endfor %}
+{%- endmacro %}{% endraw %}
+# {{cookiecutter.project_name}}
+
+{% raw %}{{ project.description }}
+
+## Services
+
+| Service | Badges |
+| --- | --- |
+{% for member in services %}
+| [{{ member.name }}]({{ member.path }}/) | {{ badges(member.path) }} |
+{% endfor %}
+
+## Libraries
+
+| Library | Badges |
+| --- | --- |
+{% for member in libs %}
+| [{{ member.name }}]({{ member.path }}/) | {{ badges(member.path) }} |
+{% endfor %}
+{% endraw %}

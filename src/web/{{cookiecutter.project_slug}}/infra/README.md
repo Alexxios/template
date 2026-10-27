@@ -1,7 +1,7 @@
 # Infrastructure
 
 The Compose files start empty. Add entries when you create services. For example,
-a service created with `scripts/new_service.py api` can use:
+a service created with `make new-service NAME=api` can use:
 
 ```yaml
 services:

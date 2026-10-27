@@ -25,3 +25,4 @@ workflows:
               paths:
                 - ./reports/junit.xml
                 - ./reports/coverage.xml
+                - ./reports/coverage.json

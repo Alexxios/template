@@ -19,8 +19,8 @@ It retains the Makefile, LICENSE, pre-commit, MkDocs, and Python tooling.
 ```bash
 cd <project_slug>
 make bootstrap
-uv run python scripts/new_service.py api
-uv run python scripts/new_lib.py common
+make new-service NAME=api
+make new-lib NAME=common
 uv add --package api ./libs/common
 make bootstrap
 make check
@@ -29,8 +29,27 @@ make check
 Choose your own member names and application framework. A service owns its
 `src/<name>/`, tests, `pyproject.toml`, and Dockerfile. A library has the same Python
 layout without a container. Service entry points are placeholders to implement.
-The root `tests/` is for integration tests across members. Helpers refuse duplicate
-names and work from any current directory. `templates/member/` is customizable.
+The root `tests/` is for integration tests across members. Creation commands
+refuse duplicate names. Pass `DESCRIPTION="..."` for a custom description.
+Use `make -C /path/to/workspace new-service NAME=api` from another directory.
+Customize `templates/service/` and
+`templates/lib/` independently; libraries never include service-only files.
+
+Member READMEs get direct Shields links for lint (including formatting), their
+own tests, and line/branch coverage during scaffolding. They remain editable and
+are never rewritten by codegen. The entire workspace README is generated from
+`templates/readme/README.md.jinja`, which includes `header.md.jinja` for the sorted
+service/library tables and badges. Edit those Jinja templates to customize the
+workspace documentation. Creating a member runs codegen automatically; run
+`make codegen` after manual additions, removals, renames, template edits, or changes
+to `tool.codegen.reports_url`. `make check-generated` detects stale output without
+writing files. Update existing member README links directly after changing hosts.
+
+The root `pyproject.toml` remains editable. Pytest searches `tests`,
+`services/*/tests`, and `libs/*/tests`; it picks up new members automatically and
+does not collect source modules that happen to match test naming conventions.
+Workspace membership and Ruff source paths also use globs, so adding a member
+does not require regenerating this file or rewriting dependencies.
 
 `make bootstrap` installs all members and copies `.env.example` to `.env` if absent.
 Commit `uv.lock`. Add dependencies with `uv add --package <name> <dependency>`;
@@ -42,8 +61,18 @@ GitHub CI defaults to enabled. `pull-request.yml` handles PR checks and retains
 `check-reports`. `ci.yml` checks the repository's default branch and also uploads
 `github-pages`, containing the documentation site and test reports under
 `reports/`. It follows the default branch in the repository settings and uploads
-the Pages artifact without deploying a site. Select `ci_sourcecraft=yes` for
-Sourcecraft, which runs `make check` and retains JUnit and coverage reports.
+the Pages artifact before automatically deploying it. Set `github_repository` to
+`owner/repo` during generation, then select **GitHub Actions** as the repository's
+Pages source once. Set `reports_url` during generation or
+`tool.codegen.reports_url` afterward for a custom public host.
+`make lint` runs Ruff and its formatting check directly; `make test` runs pytest
+with standard JUnit and coverage reporting. The badge links expect
+`reports/badges/{services,libs}/<name>/{lint,tests,coverage}.json`; publishing these
+endpoints requires a separate reporting integration. The Make targets do not
+generate badge JSON. An empty reports URL renders neutral `not run` badges.
+Failed checks still publish test reports if documentation builds successfully.
+PRs never deploy. Select `ci_sourcecraft=yes` for Sourcecraft, which runs
+`make check` and retains JUnit and coverage reports.
 
 ## Create a template
 
@@ -64,7 +93,8 @@ and tests for the generated project's inner CI. Edit `validation.toml` to config
 Cookiecutter context, inner workflow names, artifact names, and Sourcecraft cubes.
 Use `push_artifact_format = "pages"` for a Pages archive or `"directory"` for
 ordinary reports. `publish_pages` controls Pages setup and outer deployment
-separately; web collects its Pages archive with deployment disabled.
+separately. `enable_pages` can enable Pages only on the generated test repository;
+web uses this while collecting the archive without outer deployment.
 The generated `__main__.py` delegates to the common CLI in `tests/support.py`:
 
 ```bash

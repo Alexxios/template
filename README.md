@@ -118,25 +118,45 @@ After generation:
 cd <project_slug>
 make bootstrap
 uv run pre-commit install
-uv run python scripts/new_service.py api
-uv run python scripts/new_lib.py common
+make new-service NAME=api
+make new-lib NAME=common
 uv add --package api ./libs/common
 make bootstrap
 make check
 ```
 
-Names above are examples. Each helper creates an installable package with its own
+Names above are examples. Each creation target creates an installable package with its own
 `src/<name>/`, tests, and `pyproject.toml`. Services also get a Dockerfile and a
 placeholder entry point; choose the framework and implement startup yourself.
-`templates/member/` controls future scaffolds. Commit `uv.lock` after installing.
+`templates/service/` and `templates/lib/` independently control future scaffolds.
+Pass `DESCRIPTION="..."` to either target for a custom description. Creation uses
+the shared `scripts/new_workspace_member.py` helper and refuses duplicate names.
+Each member README gets direct Shields lint, test, and coverage links from its
+Cookiecutter template and remains editable. Creation regenerates the entire
+workspace README from `templates/readme/README.md.jinja`, which includes
+`header.md.jinja` for the services/libraries tables and badges. Edit those Jinja
+templates and run `make codegen`; run it after manual member additions, removals,
+renames, or badge URL changes too. `make check-generated` checks for drift.
+The root `pyproject.toml` remains editable: pytest uses `tests`, `services/*/tests`,
+and `libs/*/tests`, so discovery follows workspace changes without regeneration.
+Commit `uv.lock` after installing.
 An empty workspace has no tests, so scaffold members or add integration tests
 before running `make check`.
 
 GitHub CI is enabled by default. Pull requests use `pull-request.yml` and retain
 `check-reports`. The repository's default branch uses `ci.yml` and also uploads a
 `github-pages` artifact containing the MkDocs site and test reports. The workflow
-reads the default branch from the repository settings. Sourcecraft CI remains
-available with `ci_sourcecraft=yes` and runs the same checks.
+reads the default branch from the repository settings and automatically deploys
+the documentation and standard test/coverage reports to GitHub Pages. Set
+`github_repository=owner/repo` during generation and select **GitHub Actions** as
+the repository's Pages source once. For custom domains, set
+`tool.codegen.reports_url` and run `make codegen`; update existing member README
+links directly. Failed lint/tests still publish their reports if the docs build
+succeeds; PRs never deploy. Sourcecraft CI remains available with
+`ci_sourcecraft=yes` and runs the same checks.
+`make lint` invokes Ruff directly; `make test` invokes pytest directly. The
+scaffolded per-member badge links require a separate integration to publish their
+JSON endpoints; these Make targets do not generate badge data.
 The web template does not use the base-only `package_name`, `init_git`, or
 `ci_gitlab` settings.
 
@@ -208,8 +228,9 @@ reporting, and Sourcecraft workflow/task/cube artifacts. Both base and web use
 `ci.yml` on the default branch and `pull-request.yml` for PRs. The
 `push_artifact_format` setting tells validation to extract a Pages archive
 (`pages`) or collect ordinary report files (`directory`). `publish_pages` enables
-Pages setup and outer deployment; only base enables it. Web uploads and validates
-its Pages artifact without deploying it. Edit the shared sources in
+Pages setup and outer deployment; only base enables it. Web sets `enable_pages`
+to deploy within its generated test repository and retains the Pages artifact
+without outer deployment. Edit the shared sources in
 `templates/validation/` or the package configuration, then sync; generated workflow edits are
 replaced on the next sync.
 
@@ -325,7 +346,10 @@ CPU and memory, builds Allure, and publishes reports. The outer `validate-base.y
 workflow republishes the downloaded reports to this repository's Pages site on
 `main`/`master`. Web default-branch CI uploads a Pages artifact with its MkDocs site
 and test reports; outer validation extracts and retains it in `generated-web-ci`.
-Web PR CI retains JUnit and coverage as `check-reports`.
+Web PR CI retains JUnit and coverage reports as `check-reports`.
+The generated web default-branch workflow deploys its documentation and reports
+to Pages; outer validation enables Pages on the temporary repository and retains
+the site artifact without deploying it over this collection's reports.
 
 ### Integration credentials
 
