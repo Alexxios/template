@@ -92,9 +92,12 @@ package, edit `scaffold.py` to define `scaffold(project: Path)`, adding example 
 and tests for the generated project's inner CI. Edit `validation.toml` to configure
 Cookiecutter context, inner workflow names, artifact names, and Sourcecraft cubes.
 Use `push_artifact_format = "pages"` for a Pages archive or `"directory"` for
-ordinary reports. `publish_pages` controls Pages setup and outer deployment
-separately. `enable_pages` can enable Pages only on the generated test repository;
-web uses this while collecting the archive without outer deployment.
+ordinary reports. `enable_pages` enables Pages on the generated test repository
+when its inner CI deploys there. The inner CI also uploads its built MkDocs `site/`
+as `documentation`; set `documentation_artifact` to use another artifact name.
+The outer workflow fetches that site separately from reports and retains it under
+`docs/` in `generated-<template>-ci`. Only the collection's publisher deploys the
+metatemplate's Pages site.
 The generated `__main__.py` delegates to the common CLI in `tests/support.py`:
 
 ```bash
@@ -178,7 +181,8 @@ Provider-specific workflow sources select all validations for that provider.
 GitHub also watches each generated validation workflow; Sourcecraft watches its
 API helper and the sources of its combined generated configuration.
 
-Repository docs and license changes only run metatemplate checks. Seed changes
+Repository docs and license changes only run metatemplate checks, followed by the
+combined Pages publisher on the default branch. Seed changes
 affect future templates, so they do not trigger validation of existing snapshots.
 GitHub manual runs remain available. These filters are generated automatically
 for new templates. GitHub compares the full PR diff and can leave path-skipped
@@ -190,6 +194,54 @@ temporary repository, wait for its configured inner CI, collect results, and
 delete the repository. Results are retained as `generated-<template>-ci` on GitHub.
 An inner failure fails its outer workflow. Repository tests, lint, documentation,
 and generated-file checks run separately in `ci.yml`.
+
+## Combined GitHub Pages site
+
+Set Settings → Pages → Source to **GitHub Actions**. The generated `pages.yml`
+workflow is the collection's only Pages publisher. It runs after default-branch
+metatemplate checks or template validation completes, or manually through
+**Publish documentation**. Pull requests and runs from other branches do not deploy.
+The workflow must be merged into the default branch before completion events can
+trigger it. See GitHub's [custom Pages workflow documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+
+The metatemplate's MkDocs site lives at the Pages root. **Generated projects** links
+to each fetched MkDocs site at `templates/<template>/` and its collected CI site at
+`templates/<template>/ci/`. Documentation keeps its own navigation, search, assets,
+and PDFs. Reports are preserved as downloaded; the web CI site also includes its
+documentation and member reports.
+
+The publisher selects the newest completed default-branch push or manual validation
+with retained documentation for each template. It accepts docs
+even if that run's tests failed, and labels the validation result and commit in the
+catalog. An incomplete run cannot replace an older usable site. Path-filtered
+templates reuse their last available artifact, so a docs-only change needs no new
+temporary repositories. Builds and deployments are serialized, and every build
+checks out the current default branch and fetches current artifacts. A slow older
+validation finishing later cannot replace documentation from a newer run.
+
+On first setup, run **Validate base** and **Validate web** on the default branch to
+populate the catalog. If no usable artifact exists or all have expired, that
+template is marked unavailable; rerun its validation to restore it. API or download
+errors fail publication and leave the deployed site intact. `template-sources.json`
+records the selected validation runs and commits. New templates are registered in
+the publisher automatically by `make sync-templates`.
+
+To build the same combined site locally with GitHub CLI authentication:
+
+```bash
+make bootstrap
+uv run python -m scripts.build_pages --repository Alexxios/template --branch main
+python -m http.server --directory site 8000
+```
+
+For an offline preview, unpack retained `generated-<template>-ci` artifacts into
+`/tmp/template-artifacts/<template>/` (containing `docs/` and optionally `reports/`):
+
+```bash
+uv run python -m scripts.build_pages --artifacts-dir /tmp/template-artifacts
+```
+
+`make docs` and `make serve` continue to build the metatemplate documentation alone.
 
 GitHub is the primary repository for development and pull requests. Sourcecraft
 CI configuration and its integration workflow are retained; any Sourcecraft

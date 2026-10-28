@@ -112,6 +112,13 @@ def planned_files(root: Path) -> dict[Path, str | None]:
             raise FileExistsError(f"Refusing to overwrite a hand-written workflow: {path}")
         files[path] = environment.get_template("github.yml.jinja").render(**item).rstrip() + "\n"
 
+    pages = root / ".github/workflows/pages.yml"
+    if pages.exists() and not pages.read_text().startswith(GENERATED):
+        raise FileExistsError(f"Refusing to overwrite a hand-written workflow: {pages}")
+    files[pages] = (
+        environment.get_template("pages.yml.jinja").render(templates=templates).rstrip() + "\n"
+    )
+
     # Only obsolete workflows carrying our marker may be removed.
     for path in (root / ".github/workflows").glob("validate-*.yml"):
         if path not in files and path.read_text().startswith(GENERATED):
