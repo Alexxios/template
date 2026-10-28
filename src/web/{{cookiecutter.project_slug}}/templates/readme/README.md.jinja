@@ -49,6 +49,18 @@ The integration environment installs all members. Commit the shared `uv.lock`.
 See [infra/README.md](infra/README.md) to start Prometheus and Grafana and add
 application metrics targets.
 
+## Browser tests
+
+pytest-playwright is included in the shared `dev` group. Before running UI tests,
+install a browser with `uv run --group dev python -m playwright install chromium`
+and start the application under test. Linux CI also needs browser OS dependencies
+(`playwright install --with-deps chromium`). Run tests in the selected scope
+with `just test integration`, `just test services/<name>`, or `just test libs/<name>`.
+Browser failure videos are retained automatically under `reports/<scope>/playwright/`
+and attached to the failed Allure test by the shared root `conftest.py`.
+Passing recordings are discarded. See [the report guide](docs/ci-reports.md#browser-failure-videos)
+for configuration and overrides.
+
 ## GitHub setup and reports
 
 Pants infers dependencies from Python imports using each member's `BUILD` file.

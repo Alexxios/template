@@ -51,7 +51,17 @@ docstring-code-format = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=src --cov-report=term-missing --cov-report=html:reports/coverage --cov-report=xml:reports/coverage.xml --cov-report=json:reports/coverage.json --junitxml=reports/junit.xml --import-mode=importlib --alluredir=allure-results --clean-alluredir"
+addopts = [
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=html:reports/coverage",
+    "--cov-report=xml:reports/coverage.xml",
+    "--cov-report=json:reports/coverage.json",
+    "--junitxml=reports/junit.xml",
+    "--import-mode=importlib",
+    "--alluredir=allure-results",
+    "--clean-alluredir",
+]
 
 [tool.coverage.run]
 source = ["src"]
