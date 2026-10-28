@@ -26,6 +26,12 @@ jobs:
           make bootstrap
       - name: Check project
         run: make check
+      - name: Retain documentation
+        uses: actions/upload-artifact@v7
+        with:
+          name: documentation
+          path: site/
+          if-no-files-found: error
       - name: Retain test reports
         if: "{% raw %}${{ always() }}{% endraw %}"
         uses: actions/upload-artifact@v7

@@ -4,13 +4,13 @@ site_description: Creating and using the repository's Cookiecutter templates
 theme:
   name: material
   features:
-    - navigation.instant
     - navigation.tracking
     - content.code.copy
 
 nav:
   - Home: index.md
   - Usage: usage.md
+  - Generated projects: generated.md
 
 exclude_docs: |
   sourcecraft/

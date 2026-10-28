@@ -60,3 +60,6 @@ payloads are tested by rendering them; they are excluded from root lint and
 format commands because they contain unrendered Jinja.
 
 See [Usage](usage.md) for generation and development commands.
+
+The published site also includes [generated project documentation](generated.md),
+fetched from the temporary repositories used to validate each template.

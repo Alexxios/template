@@ -28,7 +28,8 @@ markdown_extensions:
   - admonition
   - pymdownx.superfences
   - pymdownx.highlight:
-      anchor_linenums: true
+      # The PDF renderer does not preserve code-line self-link anchors.
+      anchor_linenums: false
   - pymdownx.inlinehilite
   - toc:
       permalink: true

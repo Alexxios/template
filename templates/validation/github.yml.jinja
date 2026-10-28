@@ -22,8 +22,6 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    outputs:
-      pages-ready: ${{ steps.collect.outputs.pages-ready == 'true' && steps.artifact.outcome == 'success' }}
     env:
       TEMPLATE_MODULE: tests.[[ package ]]
       INNER_WORKFLOW: ${{ github.event_name == 'pull_request' && '[[ github.pull_request_workflow ]]' || '[[ github.push_workflow ]]' }}
@@ -97,7 +95,7 @@ jobs:
               --title "Validate generated project" \
               --body "Integration check for $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           else
-{% if github.enable_pages | default(github.publish_pages) %}
+{% if github.enable_pages | default(false) %}
             gh api --method POST "repos/$GH_REPO/pages" -f build_type=workflow
 {% endif %}
             git push origin HEAD:refs/heads/main
@@ -146,13 +144,24 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
             tar -xf "$RUNNER_TEMP/inner-reports/artifact.tar" -C generated-ci/reports
             test -s generated-ci/reports/index.html
-            echo "pages-ready=true" >> "$GITHUB_OUTPUT"
           else
             cp -R "$RUNNER_TEMP/inner-reports/." generated-ci/reports/
           fi
 {% else %}
           cp -R "$RUNNER_TEMP/inner-reports/." generated-ci/reports/
 {% endif %}
+      - name: Collect generated project's documentation
+        id: documentation
+        if: ${{ always() && steps.wait.outputs.run_id != '' && github.event_name != 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          RUN_ID: ${{ steps.wait.outputs.run_id }}
+        run: |
+          gh run download "$RUN_ID" --repo "$GH_REPO" \
+            --name "[[ github.documentation_artifact | default('documentation') ]]" --dir "$RUNNER_TEMP/inner-docs"
+          test -s "$RUNNER_TEMP/inner-docs/index.html"
+          mkdir -p generated-ci
+          mv "$RUNNER_TEMP/inner-docs" generated-ci/docs
       - name: Retain generated project's logs and reports
         id: artifact
         if: ${{ always() && steps.wait.outputs.run_id != '' }}
@@ -166,33 +175,3 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: gh repo delete "$GH_REPO" --yes
-
-{% if github.publish_pages %}  publish-reports:
-    needs: validate
-    if: >-
-      ${{ !cancelled() && github.event_name != 'pull_request' &&
-          (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') &&
-          needs.validate.outputs.pages-ready == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      pages: write
-      id-token: write
-    concurrency:
-      group: github-pages
-      queue: max
-      cancel-in-progress: false
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/download-artifact@v8
-        with:
-          name: generated-[[ template ]]-ci
-          path: generated-ci
-      - uses: actions/upload-pages-artifact@v5
-        with:
-          path: generated-ci/reports
-      - uses: actions/deploy-pages@v5
-        id: deployment
-{% endif %}

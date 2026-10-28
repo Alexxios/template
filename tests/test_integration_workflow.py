@@ -65,13 +65,16 @@ def test_wait_selects_generated_commit_and_propagates_failure(
     assert "--exit-status" in calls.read_text()
     # Logs, reports, and cleanup must still run after a failed inner workflow.
     for step in steps:
-        if step.get("id") in {"collect", "artifact"} or step.get("name", "").startswith("Delete"):
+        if step.get("id") in {"collect", "documentation", "artifact"} or step.get(
+            "name", ""
+        ).startswith("Delete"):
             assert "always()" in step["if"]
 
 
 @pytest.mark.parametrize("event", ["push", "pull_request"])
-def test_web_collects_pages_or_pr_reports_without_deploying(tmp_path, event):
-    workflow = yaml.safe_load((ROOT / ".github/workflows/validate-web.yml").read_text())
+@pytest.mark.parametrize("template", ["base", "web"])
+def test_collects_pages_or_pr_reports_without_deploying(tmp_path, event, template):
+    workflow = yaml.safe_load((ROOT / f".github/workflows/validate-{template}.yml").read_text())
     assert "publish-reports" not in workflow["jobs"]
     steps = workflow["jobs"]["validate"]["steps"]
     trigger = next(step for step in steps if step.get("name") == "Trigger generated project's CI")
@@ -102,7 +105,7 @@ def test_web_collects_pages_or_pr_reports_without_deploying(tmp_path, event):
         "exit 1\n"
     )
     fake_gh.chmod(0o755)
-    config = tomllib.loads((ROOT / "tests/web/validation.toml").read_text())["github"]
+    config = tomllib.loads((ROOT / f"tests/{template}/validation.toml").read_text())["github"]
     artifact = config[f"{event}_artifact"]
     calls = tmp_path / "calls"
     output = tmp_path / "output"
@@ -132,8 +135,33 @@ def test_web_collects_pages_or_pr_reports_without_deploying(tmp_path, event):
         assert artifact == "github-pages"
         assert (collected / "index.html").read_text() == "Documentation"
         assert (collected / "reports/junit.xml").is_file()
-        assert "pages-ready=true" in output.read_text()
     else:
         assert artifact == "check-reports"
         assert (collected / "junit.xml").is_file()
         assert not output.read_text()
+
+    documentation = next(step for step in steps if step.get("id") == "documentation")
+    assert "github.event_name != 'pull_request'" in documentation["if"]
+    assert steps.index(documentation) < next(
+        i for i, step in enumerate(steps) if step.get("id") == "artifact"
+    )
+    if event == "push":
+        (fixture / "index.html").write_text("Built MkDocs site")
+        subprocess.run(
+            ["bash", "-e", "-o", "pipefail", "-c", documentation["run"]],
+            cwd=tmp_path,
+            env={
+                **os.environ,
+                "PATH": f"{tmp_path}:{os.environ['PATH']}",
+                "CALL_LOG": str(calls),
+                "FIXTURE": str(fixture),
+                "GH_REPO": "example/temporary",
+                "RUN_ID": "123",
+                "RUNNER_TEMP": str(tmp_path),
+            },
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        assert "--name documentation" in calls.read_text()
+        assert (tmp_path / "generated-ci/docs/index.html").read_text() == "Built MkDocs site"
