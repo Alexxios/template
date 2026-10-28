@@ -57,7 +57,8 @@ they do not prevent access to transitive or tooling dependencies.
 Integration tests use a separate environment with all members installed. Their
 coverage does not contribute to member badges. Empty integration suites are
 allowed; empty member suites fail. Root scripts and integration tests are linted
-under the integration scope. Members run their own lint and formatting checks.
+under the integration scope, along with the shared root `conftest.py`. Members
+run their own lint and formatting checks.
 
 Native Ruff, pytest, coverage, and Allure outputs go directly to each scope's
 report directory. `build_reports.py` only summarizes those outputs; it neither
@@ -65,6 +66,33 @@ runs checks nor partitions workspace-wide results. Missing results/tool errors
 show unavailable, empty suites show no tests, and skipped suites show skipped.
 Reports are published after failing checks when report generation succeeds;
 the checks keep their failure status. PRs retain artifacts without publishing.
+
+## Browser failure videos
+
+Integration, service, and library pytest configurations enable
+`--video=retain-on-failure`. Tests using pytest-playwright's managed browser
+fixtures record videos; passing-test recordings are discarded. Install the
+browser before running UI tests, for example
+`uv run --group dev python -m playwright install chromium`. Linux CI also needs
+`playwright install --with-deps chromium` and the application under test running.
+Tests that do not use a browser do not launch one.
+
+Raw videos live under `reports/<scope>/playwright/<test>/`. The root `conftest.py`
+attaches finalized WebM files to the corresponding failed Allure test, including
+setup or teardown failures when a recording exists. Member pytest configurations
+set `--confcutdir=../..` to load this shared hook while retaining their own test
+and coverage settings. No per-test attachment code is needed.
+
+Allure copies attachments into `reports/<scope>/allure-results/`; the existing
+artifact and Allure report jobs retain them. `just test <scope>` clears that
+scope's old videos and Allure results before running. Override recording when
+needed with `PYTEST_ADDOPTS='--video=off' just test <scope>`. Contexts created
+manually outside the pytest-playwright fixtures need their own recording setup.
+
+This follows the [Allure pytest-playwright video guide](https://allurereport.org/docs/guides/pytest-playwright-video/),
+with attachment after the teardown report so pytest-playwright has finished
+retaining its artifacts. Attachment errors are logged without replacing the
+test's original failure.
 
 ## One-time badge setup
 
@@ -119,6 +147,7 @@ endpoints in existing member READMEs, `templates/service/*/README.md`,
     │   ├── coverage/                  Only its source, from its tests
     │   ├── allure/                    Its Allure report and trends
     │   ├── allure-results/            Native results and attachments
+    │   ├── playwright/                Retained browser failure videos
     │   ├── history.jsonl              Published Allure history snapshot
     │   ├── junit.xml
     │   ├── coverage.xml, coverage.json

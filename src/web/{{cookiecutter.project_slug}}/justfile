@@ -29,7 +29,7 @@ test $scope="": (_validate scope)
     root="$PWD"
     report_dir="$root/reports/$scope"
     mkdir -p "$report_dir"
-    rm -rf "$report_dir/coverage" "$report_dir/allure-results"
+    rm -rf "$report_dir/coverage" "$report_dir/allure-results" "$report_dir/playwright"
     rm -f "$report_dir/"{junit.xml,coverage.json,coverage.xml,.coverage,test.exit}
     package_option=""
     if [[ "$scope" == integration ]]; then
@@ -51,7 +51,7 @@ lint $scope="": (_validate scope)
     if [[ -z "$scope" ]]; then exec {{ just }} _all lint; fi
     report_dir="$PWD/reports/$scope"
     paths=("$scope")
-    if [[ "$scope" == integration ]]; then paths=(scripts tests); fi
+    if [[ "$scope" == integration ]]; then paths=(conftest.py scripts tests); fi
     mkdir -p "$report_dir"
     rm -f "$report_dir/"{ruff.json,ruff-format.json,lint.exit,format.exit}
     status=0
@@ -81,7 +81,7 @@ format $scope="": (_validate scope)
     #!/usr/bin/env bash
     set -eu
     paths=("${scope:-.}")
-    if [[ "$scope" == integration ]]; then paths=(scripts tests); fi
+    if [[ "$scope" == integration ]]; then paths=(conftest.py scripts tests); fi
     {{ python }} -m ruff format "${paths[@]}"
 
 # Build documentation.
