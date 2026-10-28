@@ -8,6 +8,8 @@ theme:
 
 nav:
   - Home: index.md
+  - Developer quickstart: quickstart.md
+  - Development tools: tools.md
   - CI reports: ci-reports.md
 
 markdown_extensions:
