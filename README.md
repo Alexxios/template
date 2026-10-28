@@ -110,8 +110,9 @@ cookiecutter . --directory src/web
 The web template provides empty `services/`, `libs/`, and integration `tests/`
 directories in a Python 3.14 uv workspace. It includes a justfile,
 LICENSE, pre-commit, MkDocs, pytest/coverage, and Ruff configuration. Infrastructure
-starters live in `infra/`: Prometheus and Grafana in Compose, plus `k8s/` and
-`nginx/` placeholders. Grafana's Prometheus data source is provisioned automatically.
+starters live in `infra/`: PostgreSQL, Redis, Prometheus, and Grafana in Compose,
+plus `k8s/` and `nginx/` placeholders. Databases include health checks and persistent
+storage. Grafana's Prometheus data source is provisioned automatically.
 
 After generation:
 

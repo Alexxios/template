@@ -75,7 +75,7 @@ def test_workspace_starts_empty_with_tooling_and_infrastructure(project):
         assert not (project / "scripts" / filename).exists()
     infra = project / "infra"
     compose = yaml.safe_load((infra / "docker-compose.yml").read_text())
-    assert set(compose["services"]) == {"prometheus", "grafana"}
+    assert set(compose["services"]) == {"postgres", "redis", "prometheus", "grafana"}
     assert yaml.safe_load((infra / "docker-compose.dev.yml").read_text()) == {"services": {}}
 
 

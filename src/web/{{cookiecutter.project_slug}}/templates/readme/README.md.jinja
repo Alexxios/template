@@ -4,6 +4,8 @@
 ## Development
 
 Start locally; a Git repository or hosting URL is not required.
+Follow the [Developer quickstart](docs/quickstart.md) for setup, local
+infrastructure, a working FastAPI example, and the daily development workflow.
 
 ```bash
 uv tool install rust-just
@@ -46,8 +48,10 @@ Shared tooling uses root dependency groups. Add runtime dependencies with
 relationships. Only declared dependencies are installed for member tests.
 The integration environment installs all members. Commit the shared `uv.lock`.
 `just format`, `just docs`, `just serve`, and `just reports` are also available.
-See [infra/README.md](infra/README.md) to start Prometheus and Grafana and add
-application metrics targets.
+See [Development tools](docs/tools.md) for the testing tools, their purposes,
+and setup requirements.
+See [infra/README.md](infra/README.md) to start PostgreSQL, Redis, Prometheus,
+and Grafana, configure database connections, and add application metrics targets.
 
 ## Browser tests
 
