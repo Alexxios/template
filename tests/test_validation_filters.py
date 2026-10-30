@@ -60,6 +60,7 @@ def test_only_affected_templates_are_selected(provider, event):
         (["uv.lock"], both),
         ([".python-version"], both),
         (["templates/validation/github.yml.jinja"], both if provider == "github" else set()),
+        ([".github/workflows/template-validation.yml"], both if provider == "github" else set()),
         (
             ["templates/validation/sourcecraft.yaml.jinja"],
             both if provider == "sourcecraft" else set(),

@@ -1,5 +1,6 @@
 """Validate automatic registration and generated-file maintenance."""
 
+import re
 import shutil
 import subprocess
 import sys
@@ -20,7 +21,8 @@ def test_new_template_registers_workflow_fixture_and_status(collection, tmp_path
     create_template("python-lib", root=collection)
     workflow = collection / ".github/workflows/validate-python-lib.yml"
     job = yaml.safe_load(workflow.read_text())["jobs"]["validate"]
-    assert job["env"]["TEMPLATE_MODULE"] == "tests.python_lib"
+    assert job["uses"] == "./.github/workflows/template-validation.yml"
+    assert job["with"]["package"] == "python_lib"
     assert "validate-python-lib.yml/badge.svg" in (collection / "README.md").read_text()
     sourcecraft = yaml.safe_load((collection / ".sourcecraft/ci.yaml").read_text())
     assert "validate-python-lib" in sourcecraft["workflows"]
@@ -110,7 +112,7 @@ def test_failed_registration_restores_files_and_can_be_retried(collection, monke
 
 def test_sync_does_not_overwrite_handwritten_workflows(collection):
     workflow = collection / ".github/workflows/validate-custom.yml"
-    workflow.parent.mkdir(parents=True)
+    workflow.parent.mkdir(parents=True, exist_ok=True)
     workflow.write_text("# Hand-written workflow\n")
     with pytest.raises(FileExistsError, match="hand-written"):
         create_template("custom", root=collection)
@@ -158,3 +160,48 @@ def test_existing_templates_share_render_and_scaffold_cli(
 
 def test_repository_generated_files_are_current():
     assert not sync(ROOT, check=True)
+
+
+@pytest.mark.parametrize("filename", ["pages.yml", "template-validation.yml"])
+@pytest.mark.parametrize("reference", ["v999", "a" * 40 + " # v999.0.0"])
+def test_dependabot_updates_survive_checks_and_template_registration(
+    collection, filename, reference
+):
+    create_template("custom", root=collection)
+    workflow = collection / ".github/workflows" / filename
+    updated = re.sub(
+        r"actions/checkout@\S+(?:[ \t]+#.*)?",
+        f"actions/checkout@{reference}",
+        workflow.read_text(),
+    )
+    assert updated != workflow.read_text()
+    workflow.write_text(updated)
+
+    assert not sync(collection, check=True)
+    assert workflow.read_text() == updated
+    assert not sync(collection)
+    create_template("another", root=collection)
+    assert f"actions/checkout@{reference}" in workflow.read_text()
+    if filename == "template-validation.yml":
+        assert workflow.read_text() == updated
+    assert not sync(collection, check=True)
+
+
+def test_pages_trigger_drift_is_detected_without_overwriting_action_updates(collection):
+    create_template("custom", root=collection)
+    pages = collection / ".github/workflows/pages.yml"
+    updated = re.sub(r"actions/deploy-pages@\S+", "actions/deploy-pages@v999", pages.read_text())
+    drift = updated.replace("      - Validate custom\n", "      - Validate removed\n")
+    pages.write_text(drift)
+    assert sync(collection, check=True) == [pages]
+    assert pages.read_text() == drift
+    sync(collection)
+    assert pages.read_text() == updated
+
+
+def test_sync_requires_pages_generation_markers(collection):
+    pages = collection / ".github/workflows/pages.yml"
+    pages.write_text("# Hand-written workflow without managed triggers\n")
+    with pytest.raises(ValueError, match="generated validation-workflows section"):
+        sync(collection)
+    assert pages.read_text() == "# Hand-written workflow without managed triggers\n"

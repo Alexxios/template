@@ -8,6 +8,8 @@ The published collection site includes the latest available documentation for ea
 template, alongside its CI reports and the source validation run. Each project keeps
 its own navigation and search. Templates update independently when their validation
 finishes; documentation can therefore come from different commits.
+**CI reports** opens base's Allure report or web's report dashboard, which links
+to each member's coverage and Allure reports.
 
 <!-- GENERATED TEMPLATE SITES -->
 

@@ -13,6 +13,10 @@ ROOT = Path(__file__).resolve().parents[1]
 def collection(tmp_path, cookiecutter_config):
     root = tmp_path / "collection"
     shutil.copytree(ROOT / "templates", root / "templates")
+    workflows = root / ".github/workflows"
+    workflows.mkdir(parents=True)
+    for filename in ("pages.yml", "template-validation.yml"):
+        shutil.copy2(ROOT / ".github/workflows" / filename, workflows / filename)
     (root / "scripts").mkdir()
     for filename in ("__init__.py", "new_template.py", "sync_templates.py"):
         shutil.copy2(ROOT / "scripts" / filename, root / "scripts" / filename)

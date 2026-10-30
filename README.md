@@ -261,12 +261,13 @@ application code to the project seed.
 reporting, and Sourcecraft workflow/task/cube artifacts. Both base and web use
 `ci.yml` on the default branch and `pull-request.yml` for PRs. The
 `push_artifact_format` setting tells validation to extract a Pages archive
-(`pages`) or collect ordinary report files (`directory`). `publish_pages` enables
-Pages setup and outer deployment; only base enables it. Web sets `enable_pages`
-to deploy within its generated test repository and retains the Pages artifact
-without outer deployment. Edit the shared sources in
-`templates/validation/` or the package configuration, then sync; generated workflow edits are
-replaced on the next sync.
+(`pages`) or collect ordinary report files (`directory`). `enable_pages` enables
+Pages in the generated test repository. `reports_path` selects the report entry
+point within the collected site: `.` for base's Allure report and `reports` for
+web's report dashboard. The collection publisher preserves the complete sites.
+Edit the shared sources in `templates/validation/` or the package configuration,
+then sync to update the generated validation callers. Their shared implementation
+lives in `.github/workflows/template-validation.yml` and is edited directly.
 
 ## Develop this repository
 
@@ -379,14 +380,14 @@ inner artifacts. Web has no Sourcecraft validation workflow.
 The base template retains its existing reports. Its pull-request workflow runs
 tests, coverage, Ruff, and the docs PDF build. On pushes, its inner CI also profiles
 CPU and memory, builds Allure, and publishes reports. The outer `validate-base.yml`
-workflow republishes the downloaded reports to this repository's Pages site on
-`main`/`master`. Web default-branch CI uploads a Pages artifact with its MkDocs site
+workflow retains those reports for the collection's `pages.yml` publisher.
+Web default-branch CI uploads a Pages artifact with its MkDocs site
 and test reports; outer validation extracts and retains it in `generated-web-ci`.
 Web PR CI retains native test/coverage data, Allure, and per-member reports as
 `check-reports`, without updating Allure history.
 The generated web default-branch workflow deploys its documentation and reports
 to Pages; outer validation enables Pages on the temporary repository and retains
-the site artifact without deploying it over this collection's reports.
+the site artifact for the collection publisher.
 
 ### Integration credentials
 
@@ -409,10 +410,17 @@ as well. Generated projects themselves use only their built-in `GITHUB_TOKEN`.
 2. If the `github-pages` environment restricts deployment branches, allow both
    `main` and `master`.
 3. Configure `CI_GITHUB_TOKEN` above and push to `main` or `master`. The outer
-   workflow publishes the reports downloaded from the generated project's CI.
+   validations retain documentation and reports for the collection publisher.
 
-The [Pages site](https://alexxios.github.io/template/) opens the native Allure report.
-Other outputs are served directly:
+The [Pages site](https://alexxios.github.io/template/) opens the metatemplate's
+documentation. Its [Generated projects](https://alexxios.github.io/template/generated/)
+catalog links to each project's documentation and reports:
+
+- Base **CI reports** opens Allure at `templates/base/ci/`.
+- Web **CI reports** opens its report dashboard at `templates/web/ci/reports/`,
+  with links to each member's coverage and Allure reports.
+
+Base's other outputs are served relative to `templates/base/ci/`:
 
 | Path | Report |
 | --- | --- |
@@ -427,8 +435,8 @@ Other outputs are served directly:
 The README header uses GitHub workflow-status badges, one per template. Detailed
 test and coverage results remain available in the workflow artifacts and Pages.
 
-Each deployment replaces the site with reports from a generated project's run.
-Publishing is serialized. The outer report measures generated project code;
+Each deployment assembles the latest retained site for each template independently.
+Publishing is serialized. The reports measure generated project code;
 each temporary repository starts with fresh history. In permanent generated
 projects, Allure history is restored from a branch-specific Actions cache and
 saved after report generation, including failed tests. Cache eviction starts a
@@ -443,9 +451,13 @@ within a profiling run.
 ## Dependency updates
 
 Dependabot checks weekly and opens grouped update pull requests on GitHub.
-Outer validation workflows are generated: update their Action versions in
-`templates/validation/github.yml.jinja` and run `scripts/sync_templates.py` so the
-source and generated files stay consistent.
+Action versions live in ordinary workflow YAML, where Dependabot updates them
+directly. Generated `validate-*.yml` callers use the shared
+`.github/workflows/template-validation.yml`; they contain no external Action
+versions. This follows GitHub's [reusable workflow model](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows).
+Only the marked validation-trigger list in `pages.yml` is generated. Its jobs
+are maintained directly, so Action updates pass `make check-generated` and survive
+`make sync-templates` without copying versions into Jinja templates.
 The template repository's `.github/dependabot.yml` covers its own Actions and
 repository tooling (`pyproject.toml`, using uv), plus each template's Actions,
 Python dependencies (`src/*/templates/dependencies/pyproject.toml`, also using uv),
