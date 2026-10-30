@@ -1,0 +1,10 @@
+{% raw %}apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+  - service.yaml
+images:
+  - name: {{cookiecutter.kubernetes_name | tojson}}
+    newName: registry.example.com/your-team/{{cookiecutter.kubernetes_name}} # Your image repository.
+    newTag: dev # Replace with an immutable release tag before deploying.
+{% endraw %}

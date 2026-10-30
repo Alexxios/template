@@ -122,7 +122,12 @@ def test_collection_failure_is_confined_to_one_member(project):
     build_reports(project)
     assert member_report(project, "libs/broken")["badges"]["tests"]["message"] == "unavailable"
     assert member_report(project, "services/healthy")["badges"]["tests"]["message"] == "1 passed"
-    assert member_report(project, "services/healthy")["badges"]["coverage"]["message"] == "14.3%"
+    native_coverage = json.loads((project / "reports/services/healthy/coverage.json").read_text())
+    expected_coverage = f"{native_coverage['totals']['percent_covered']:.1f}%"
+    assert (
+        member_report(project, "services/healthy")["badges"]["coverage"]["message"]
+        == expected_coverage
+    )
 
 
 def test_tool_startup_failure_cannot_reuse_old_lint_results(project):

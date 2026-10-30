@@ -7,7 +7,7 @@ authors = [{ name = "{{cookiecutter.author_name}}", email = "{{cookiecutter.auth
 readme = "README.md"
 requires-python = ">={{cookiecutter.python_min_version}}"
 license = "{% if cookiecutter.license == 'Proprietary' %}LicenseRef-Proprietary{% else %}{{cookiecutter.license}}{% endif %}"
-dependencies = []
+dependencies = ["fastapi", "uvicorn"]
 
 {{ package_build() }}
 

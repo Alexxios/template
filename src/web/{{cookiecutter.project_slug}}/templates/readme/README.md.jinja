@@ -19,12 +19,22 @@ just check
 ```
 
 Members contain an editable `pyproject.toml`, `src/<package>/`, and `tests/`.
-Services also have a Dockerfile and an application entry point to implement.
-Libraries have neither. Root `tests/` contains integration tests.
+Services also have a FastAPI `app`, a Dockerfile that starts Uvicorn on port 80,
+and `k8s/` defaults for a Deployment, a ClusterIP Service, and Kustomize. Each service
+README explains image configuration and deployment. Libraries contain Python
+packages without deployment files. Root `tests/` contains integration tests.
+
+Service `main.py` assembles the application and its lifespan; `routers/health.py`
+provides `/health/live` and `/health/ready` for HTTP probes. Readiness returns 503
+when the instance is unavailable. Add route groups under `routers/` and register
+them in `create_app()`.
 
 Use `just new-service <name>` or `just new-lib <name>`, optionally followed by a
 description: `just new-lib common "Shared utilities"`.
 Names must be unique lowercase Python identifiers. Run `just` to list commands.
+Kubernetes names default to package names with underscores replaced by hyphens;
+they must fit in 63 characters and end in a letter or digit. Customize
+`kubernetes_name` in `templates/service/cookiecutter.json` when needed.
 Customize scaffolds in `templates/service/` and `templates/lib/` independently.
 Creation refreshes this README through `templates/readme/README.md.jinja`, which
 includes `header.md.jinja` for the tables. Run `just codegen` after manually

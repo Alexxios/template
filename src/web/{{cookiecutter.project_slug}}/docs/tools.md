@@ -41,7 +41,7 @@ uv run --group dev schemathesis run http://127.0.0.1:8000/openapi.json
 ```
 
 Use a disposable test application and database: generated requests can create,
-change, and delete data. Service scaffolds provide a placeholder entry point;
+change, and delete data. Service scaffolds provide `/health/live` and `/health/ready`;
 implement and start the application before running this command.
 
 Testcontainers needs a running Docker daemon locally and in CI. Create and clean

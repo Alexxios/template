@@ -29,9 +29,20 @@ just bootstrap
 just check
 ```
 
-Choose your own member names and application framework. A service owns its
-`src/<name>/`, tests, `pyproject.toml`, and Dockerfile. A library has the same Python
-layout without a container. Service entry points are placeholders to implement.
+Choose your own member names. A service owns its
+`src/<name>/`, tests, `pyproject.toml`, Dockerfile, and `k8s/` manifests. Kubernetes
+defaults include a Deployment with resource limits and HTTP probes on port 80,
+a ClusterIP Service, and a Kustomize configuration. Services expose a FastAPI `app`
+with a dedicated health router for `/health/live` and `/health/ready`; the
+Dockerfile launches it through `uv run --no-sync uvicorn`. `main.py` provides the
+application factory and lifespan. Readiness returns 503 when the instance is
+unavailable, while liveness remains independent of external dependencies.
+FastAPI and Uvicorn are declared in each service's dependencies. Set the
+image repository/tag before deploying; the service README includes the commands.
+Kubernetes names replace underscores with hyphens, must fit in 63 characters,
+and end in a letter or digit. Customize `kubernetes_name` in the nested service
+template when needed. A library has the same Python layout without deployment
+files.
 The root `tests/` is for integration tests across members. Creation commands
 refuse duplicate names. Pass a second argument, such as
 `just new-lib common "Shared utilities"`, for a custom description.

@@ -133,8 +133,18 @@ just check
 ```
 
 Names above are examples. Each creation command creates an installable package with its own
-`src/<name>/`, tests, and `pyproject.toml`. Services also get a Dockerfile and a
-placeholder entry point; choose the framework and implement startup yourself.
+`src/<name>/`, tests, and `pyproject.toml`. Services also get a FastAPI `app`, a
+Dockerfile that starts Uvicorn, and `k8s/` defaults: a Deployment with resource limits
+and HTTP probes, a ClusterIP Service, and a Kustomize configuration. FastAPI and
+Uvicorn are declared as service dependencies. Configure the container image and
+review the port 80 defaults before deploying; each service README includes build
+and deployment commands.
+`main.py` assembles the application and lifespan, while `routers/health.py`
+provides `/health/live` and `/health/ready`. Readiness returns 503 when the
+instance is unavailable; startup and liveness use the independent live endpoint.
+Kubernetes names replace package-name underscores with hyphens and must be at
+most 63 characters, ending in a letter or digit. Override `kubernetes_name` in
+the nested service template when needed.
 `templates/service/` and `templates/lib/` independently control future scaffolds.
 Pass a second argument, such as `just new-service api "API service"`, for a custom
 description. Creation uses the shared `scripts/new_workspace_member.py` helper
