@@ -31,7 +31,7 @@ def scaffold(project: Path) -> None:
         manifest = project / group / name / "pyproject.toml"
         distribution = dependency.replace("_", "-")
         content = manifest.read_text().replace(
-            "dependencies = []", f'dependencies = ["{distribution}"]'
+            "dependencies = [", f'dependencies = ["{distribution}", ', 1
         )
         manifest.write_text(
             content + f"\n[tool.uv.sources]\n{distribution} = {{ workspace = true }}\n"

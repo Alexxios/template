@@ -104,14 +104,14 @@ and application metrics configuration.
 just new-service api "HTTP API"
 just new-lib common "Shared application code"
 uv add --package api ./libs/common
-uv add --package api fastapi uvicorn
 just bootstrap
 ```
 
 The generators create installable packages with their own `pyproject.toml`,
 `src/`, and `tests/`, and refresh the workspace README. The service also gets a
-Dockerfile and a placeholder `main()` to implement. The library is ready for
-shared code as the application grows.
+Dockerfile, a FastAPI `app`, and `k8s/` defaults for Kubernetes. FastAPI and Uvicorn
+are already declared in the service's dependencies.
+The library is ready for shared code as the application grows.
 
 Declare runtime dependencies on the member that imports them, even when they also
 appear in the root manifest. Member tests and container builds install that
@@ -121,30 +121,43 @@ the shared lockfile and member dependency model.
 
 ## 5. Implement and run the API
 
-Replace the placeholder in `services/api/src/api/main.py` with:
+The service separates application assembly from route groups:
 
-```python
-import uvicorn
-from fastapi import FastAPI
-
-app = FastAPI()
-
-
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
-
-
-def main() -> None:
-    uvicorn.run("api.main:app", host="0.0.0.0", port=8000)
-
-
-if __name__ == "__main__":
-    main()
+```text
+services/api/
+├── pyproject.toml
+├── Dockerfile
+├── k8s/
+├── tests/
+└── src/api/
+    ├── __init__.py
+    ├── main.py
+    ├── py.typed
+    └── routers/
+        ├── __init__.py
+        └── health.py
 ```
 
-The `main()` function supports the scaffolded Dockerfile's `python -m api.main`
-entry point. For local development, start a server bound to localhost with reload:
+`main.py` defines `create_app()`, the application lifespan, and the ASGI `app`.
+`routers/health.py` provides `/health/live` and `/health/ready`. Add new route
+groups under `routers/` and register them with `app.include_router()` inside
+`create_app()`. See [FastAPI's router guide](https://fastapi.tiangolo.com/tutorial/bigger-applications/).
+
+`src/` is a source directory; `api` is the import package. This keeps imports
+distinct across workspace services and separates installed code from project
+tooling. See the [Python layout comparison](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/).
+
+The Dockerfile starts Uvicorn directly on port 80:
+
+```bash
+uv run --no-sync uvicorn api.main:app --host 0.0.0.0 --port 80
+```
+
+The import path includes `api` because the application lives in an installed
+workspace package. `--no-sync` uses the dependencies installed during the image
+build. See [uv's syncing options](https://docs.astral.sh/uv/concepts/projects/sync/)
+and the [FastAPI server guide](https://fastapi.tiangolo.com/deployment/manually/).
+For local development, use port 8000 on localhost with reload:
 
 ```bash
 uv run --package api uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload --reload-dir services/api/src --reload-dir libs/common/src
@@ -153,16 +166,29 @@ uv run --package api uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload 
 Keep that terminal running. In a second terminal, request the health endpoint:
 
 ```bash
-curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8000/health/live
+curl http://127.0.0.1:8000/health/ready
 ```
 
-Expect `{"status":"ok"}`. Open <http://127.0.0.1:8000/docs> for interactive API docs
+Expect `{"status":"ok"}` and `{"status":"ready"}`, respectively.
+Open <http://127.0.0.1:8000/docs> for interactive API docs
 or <http://127.0.0.1:8000/openapi.json> for the schema. This follows FastAPI's
 [first steps](https://fastapi.tiangolo.com/tutorial/first-steps/).
 
-The example endpoint does not access a database. When adding persistence, declare
-the chosen database drivers on `api`, configure connections using the addresses
-above, and add your application's migrations.
+Readiness returns 503 while `app.state.ready` is false. Initialize required
+resources in the lifespan before setting it true, and clean up resources on
+shutdown. The default readiness check covers application lifecycle only; add
+bounded checks for essential dependencies as the service grows. Keep liveness
+independent of database availability. When adding persistence, declare the chosen
+drivers on `api`, configure connections using the addresses above, and add your
+application's migrations.
+
+For Kubernetes deployment, follow `services/api/README.md` to build and push the
+image, configure Kustomize, and apply the manifests. The container defaults use port 80
+with HTTP startup/readiness/liveness probes and a cluster-internal Service.
+Startup and liveness use `/health/live`; readiness uses `/health/ready`.
+Review resource limits and configure the application's environment before
+deploying; the local Compose databases are separate from the cluster.
 
 ## 6. Add a test and run checks
 
@@ -171,14 +197,18 @@ Create `services/api/tests/test_health.py`:
 ```python
 from fastapi.testclient import TestClient
 
-from api.main import app
+from api.main import create_app
 
 
 def test_health():
+    app = create_app()
     with TestClient(app) as client:
-        response = client.get("/health")
-    assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+        assert client.get("/health/live").json() == {"status": "ok"}
+        assert client.get("/health/ready").json() == {"status": "ready"}
+        app.state.ready = False
+        assert client.get("/health/ready").status_code == 503
+        assert client.get("/health/live").status_code == 200
+    assert app.state.ready is False
 ```
 
 Run from the workspace root:

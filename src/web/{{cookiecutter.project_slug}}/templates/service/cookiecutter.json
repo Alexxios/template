@@ -1,5 +1,6 @@
 {
   "package_name": "new_service",
+  "kubernetes_name": "{% raw %}{{ cookiecutter.package_name.replace('_', '-') }}{% endraw %}",
   "description": "A workspace service",
   "version": "{{cookiecutter.version}}"
 }

@@ -1,0 +1,48 @@
+{% raw %}apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{cookiecutter.kubernetes_name | tojson}}
+  labels:
+    app.kubernetes.io/name: {{cookiecutter.kubernetes_name | tojson}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{cookiecutter.kubernetes_name | tojson}}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{cookiecutter.kubernetes_name | tojson}}
+    spec:
+      automountServiceAccountToken: false # Enable if the app needs in-cluster API credentials.
+      containers:
+        - name: {{cookiecutter.kubernetes_name | tojson}}
+          image: {{cookiecutter.kubernetes_name}}:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80 # Matches Uvicorn's listening port in the Dockerfile.
+          startupProbe: # Allow up to five minutes for application initialization.
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe: # Stop routing traffic when the application is not ready.
+            httpGet:
+              path: /health/ready
+              port: http
+            periodSeconds: 10
+          livenessProbe: # Restart the container after repeated failures.
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 10
+          resources: # Tune scheduling requests and runtime limits for the workload.
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+{% endraw %}

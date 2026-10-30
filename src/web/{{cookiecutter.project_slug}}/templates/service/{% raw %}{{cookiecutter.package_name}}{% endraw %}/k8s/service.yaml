@@ -1,0 +1,15 @@
+{% raw %}apiVersion: v1
+kind: Service
+metadata:
+  name: {{cookiecutter.kubernetes_name | tojson}}
+  labels:
+    app.kubernetes.io/name: {{cookiecutter.kubernetes_name | tojson}}
+spec:
+  type: ClusterIP # Expose the service inside the cluster.
+  selector:
+    app.kubernetes.io/name: {{cookiecutter.kubernetes_name | tojson}}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http # Matches the named container port in the Deployment.
+{% endraw %}

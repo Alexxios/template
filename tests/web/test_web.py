@@ -89,9 +89,13 @@ def test_nested_generators_create_independent_members_from_any_directory(project
         assert metadata["project"]["name"] == name
         assert metadata["project"]["description"] == description
         assert metadata["build-system"]["build-backend"] == "setuptools.build_meta"
+        assert metadata["project"]["dependencies"] == (
+            ["fastapi", "uvicorn"] if kind == "service" else []
+        )
         assert (member / f"src/{name}/py.typed").is_file()
         assert (member / "tests/test_smoke.py").is_file()
         assert (member / "Dockerfile").exists() == (kind == "service")
+        assert (member / "k8s").exists() == (kind == "service")
         assert (member / f"src/{name}/main.py").exists() == (kind == "service")
         assert not (member / "tests/__init__.py").exists()
     assert not (project / "injected").exists()
@@ -138,7 +142,8 @@ def test_inner_ci_fixture_scaffolds_workspace_dependencies(project):
         ("libs", "storage", "shared-utils"),
     ):
         metadata = tomllib.loads((project / group / name / "pyproject.toml").read_text())
-        assert metadata["project"]["dependencies"] == [dependency]
+        expected = [dependency, "fastapi", "uvicorn"] if group == "services" else [dependency]
+        assert metadata["project"]["dependencies"] == expected
         assert metadata["tool"]["uv"]["sources"][dependency] == {"workspace": True}
     assert (project / "tests/test_workspace.py").is_file()
 

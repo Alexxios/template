@@ -89,21 +89,21 @@ services:
         condition: service_healthy
 ```
 
-Implement the service's `main()` before starting its container. Run from the
-workspace root after `just bootstrap` and `uv lock` (commit `uv.lock`):
+The service Dockerfile starts Uvicorn on port 80. Run from the workspace root
+after `just bootstrap` and `uv lock` (commit `uv.lock`):
 
 ```bash
 docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.dev.yml up --build
 ```
 
-Once the API listens on `0.0.0.0:8000` and exposes a Prometheus-format `/metrics`
-endpoint, append this job to `scrape_configs` in `prometheus/prometheus.yml`:
+Once the API exposes a Prometheus-format `/metrics` endpoint, append this job
+to `scrape_configs` in `prometheus/prometheus.yml`:
 
 ```yaml
   - job_name: api
     metrics_path: /metrics
     static_configs:
-      - targets: ["api:8000"]
+      - targets: ["api:80"]
 ```
 
 Use the Compose service name and its container port. Installing Python packages
@@ -115,4 +115,24 @@ See the [Prometheus configuration reference](https://prometheus.io/docs/promethe
 and [Grafana provisioning guide](https://grafana.com/docs/grafana/latest/administration/provisioning/)
 for additional settings.
 
-`k8s/` and `nginx/` are reserved for deployment manifests and proxy configuration.
+## Kubernetes
+
+`just new-service <name>` creates `services/<name>/k8s/` with a Deployment,
+ClusterIP Service, and Kustomize configuration. The defaults route Service port
+80 to container port 80, use HTTP startup/readiness/liveness probes, and set CPU
+and memory requests and limits. Each service README includes image build/push,
+manifest preview, apply, rollout, and port-forward commands.
+
+Startup and liveness request `/health/live`; readiness requests `/health/ready`.
+The readiness endpoint returns 503 when application initialization is incomplete
+or the instance has been marked unavailable. Add essential dependency checks to
+readiness as needed; keep liveness independent of database availability.
+
+Configure the service's image, environment, and resource needs before deploying.
+For workers, replace the Uvicorn command in the Dockerfile, remove the Service
+from the Kustomize resources, and remove or replace the HTTP port and probes.
+The Compose databases and monitoring stack above remain local infrastructure;
+configure cluster dependencies separately.
+
+`infra/k8s/` is available for shared manifests and environment overlays referencing
+the service configurations. `nginx/` is reserved for proxy configuration.
