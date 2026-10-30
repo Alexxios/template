@@ -183,10 +183,14 @@ def test_combined_build_preserves_sites_assets_search_reports_and_project_urls(t
         (project / "docs/logo.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg"/>')
         bundle = artifacts / name
         build(load_config(str(project / "mkdocs.yml"), strict=True, site_dir=str(bundle / "docs")))
-        (bundle / "reports").mkdir()
-        (bundle / "reports/index.html").write_text('<a href="coverage/">Coverage</a>')
-        (bundle / "reports/coverage").mkdir()
-        (bundle / "reports/coverage/index.html").write_text("Coverage")
+        # Base publishes Allure at its root; web publishes docs at its root and
+        # a report dashboard below reports/. Match both actual artifact layouts.
+        reports = bundle / ("reports/reports" if name == "web" else "reports")
+        (reports / "coverage").mkdir(parents=True)
+        (reports / "index.html").write_text(f'{name} reports <a href="coverage/">Coverage</a>')
+        (reports / "coverage/index.html").write_text("Coverage")
+        if name == "web":
+            (bundle / "reports/index.html").write_text("Web documentation, not reports")
         (bundle / "source.json").write_text(
             json.dumps(
                 {
@@ -209,15 +213,38 @@ def test_combined_build_preserves_sites_assets_search_reports_and_project_urls(t
             if path.is_file():
                 copied = output / "templates" / name / path.relative_to(artifacts / name / "docs")
                 assert copied.read_bytes() == path.read_bytes()
-        assert (output / "templates" / name / "ci/coverage/index.html").read_text() == "Coverage"
+        for path in (artifacts / name / "reports").rglob("*"):
+            if path.is_file():
+                copied = (
+                    output
+                    / "templates"
+                    / name
+                    / "ci"
+                    / path.relative_to(artifacts / name / "reports")
+                )
+                assert copied.read_bytes() == path.read_bytes()
     urls = [
         urljoin("https://example.github.io/collection/generated/", link)
         for link in Links(catalog).urls
     ]
     for name in ("base", "web"):
         assert f"https://example.github.io/collection/templates/{name}/" in urls
-        assert f"https://example.github.io/collection/templates/{name}/ci/" in urls
+        report = "reports/" if name == "web" else ""
+        assert f"https://example.github.io/collection/templates/{name}/ci/{report}" in urls
+        target = output / "templates" / name / "ci" / report
+        assert f"{name} reports" in (target / "index.html").read_text()
+        for link in Links((target / "index.html").read_text()).urls:
+            assert (target / link / "index.html").is_file()
+    assert "https://example.github.io/collection/templates/web/ci/" not in urls
     assert set(json.loads((output / "template-sources.json").read_text())) == {"base", "web"}
+
+    # A collected docs homepage alone must never be advertised as web reports.
+    shutil.rmtree(artifacts / "web/reports/reports")
+    build_pages.build_site(artifacts, output)
+    catalog = (output / "generated/index.html").read_text()
+    assert '../templates/web/">Open documentation' in catalog
+    assert "../templates/web/ci/" not in catalog
+    assert '../templates/base/ci/">CI reports' in catalog
 
     # Rebuilding cleans removed templates and never requires an artifact for a new template.
     shutil.rmtree(artifacts / "web")

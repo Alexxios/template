@@ -1,7 +1,9 @@
 version: 2
 
 updates:
-  # The template repository's own GitHub workflows.
+  # The template repository's own GitHub workflows, including the shared
+  # template-validation.yml. Generated callers contain no external Action refs;
+  # pages.yml only generates its trigger list, leaving versions here to Dependabot.
   - package-ecosystem: github-actions
     directory: /
     schedule:

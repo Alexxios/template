@@ -191,6 +191,11 @@ dependencies/Python version, and the workflow generator select all templates.
 Provider-specific workflow sources select all validations for that provider.
 GitHub also watches each generated validation workflow; Sourcecraft watches its
 API helper and the sources of its combined generated configuration.
+GitHub validation callers share `.github/workflows/template-validation.yml`;
+changes to that implementation select all GitHub validations. Action versions
+live there and in the other ordinary workflows, so Dependabot can update them
+without generated-file drift. In `pages.yml`, only the marked trigger list is
+generated; edit its jobs directly.
 
 Repository docs and license changes only run metatemplate checks, followed by the
 combined Pages publisher on the default branch. Seed changes
@@ -208,7 +213,7 @@ and generated-file checks run separately in `ci.yml`.
 
 ## Combined GitHub Pages site
 
-Set Settings → Pages → Source to **GitHub Actions**. The generated `pages.yml`
+Set Settings → Pages → Source to **GitHub Actions**. The `pages.yml`
 workflow is the collection's only Pages publisher. It runs after default-branch
 metatemplate checks or template validation completes, or manually through
 **Publish documentation**. Pull requests and runs from other branches do not deploy.
@@ -216,10 +221,14 @@ The workflow must be merged into the default branch before completion events can
 trigger it. See GitHub's [custom Pages workflow documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
 
 The metatemplate's MkDocs site lives at the Pages root. **Generated projects** links
-to each fetched MkDocs site at `templates/<template>/` and its collected CI site at
-`templates/<template>/ci/`. Documentation keeps its own navigation, search, assets,
-and PDFs. Reports are preserved as downloaded; the web CI site also includes its
-documentation and member reports.
+to each fetched MkDocs site at `templates/<template>/`. **CI reports** opens base's
+Allure site at `templates/base/ci/` and web's report dashboard at
+`templates/web/ci/reports/`. The `github.reports_path` setting in each template's
+`tests/<package>/validation.toml` selects this entry point relative to its collected
+CI site (`.` by default). A missing report index omits the report link.
+Documentation keeps its own navigation, search, assets, and PDFs. Complete CI
+sites are preserved under `templates/<template>/ci/`, including web's documentation
+and member reports, so their internal links keep working.
 
 The publisher selects the newest completed default-branch push or manual validation
 with retained documentation for each template. It accepts docs

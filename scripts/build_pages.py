@@ -8,7 +8,8 @@ import json
 import shutil
 import subprocess
 import tempfile
-from pathlib import Path
+import tomllib
+from pathlib import Path, PurePosixPath
 from urllib.parse import urlencode
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,6 +23,15 @@ def template_names(root: Path) -> list[str]:
 def github_json(endpoint: str) -> dict:
     result = subprocess.run(["gh", "api", endpoint], check=True, capture_output=True, text=True)
     return json.loads(result.stdout)
+
+
+def reports_path(root: Path, name: str) -> PurePosixPath:
+    """Locate the report entry point within a template's collected CI site."""
+    config = root / "tests" / name.replace("-", "_") / "validation.toml"
+    path = PurePosixPath(tomllib.loads(config.read_text())["github"].get("reports_path", "."))
+    if path.is_absolute() or ".." in path.parts:
+        raise ValueError(f"{config}: github.reports_path must stay within the collected CI site")
+    return path
 
 
 def fetch_template(repository: str, branch: str, name: str, destination: Path) -> dict | None:
@@ -114,8 +124,10 @@ def build_site(artifacts: Path, output: Path, *, root: Path = ROOT, site_url: st
         # Their URLs are relative to the generated/ catalog page, including on
         # project Pages URLs and custom domains.
         entry = f'## {name}\n\n<a href="../templates/{name}/">Open documentation</a>'
-        if (bundle / "reports/index.html").is_file():
-            entry += f' · <a href="../templates/{name}/ci/">CI reports</a>'
+        report = reports_path(root, name)
+        if (bundle / "reports" / report / "index.html").is_file():
+            url = PurePosixPath("..", "templates", name, "ci") / report
+            entry += f' · <a href="{html.escape(str(url), quote=True)}/">CI reports</a>'
         source_path = bundle / "source.json"
         if source_path.is_file():
             source = json.loads(source_path.read_text())
@@ -148,7 +160,7 @@ def build_site(artifacts: Path, output: Path, *, root: Path = ROOT, site_url: st
         bundle = artifacts / name
         target = output / "templates" / name
         shutil.copytree(bundle / "docs", target)
-        if (bundle / "reports/index.html").is_file():
+        if (bundle / "reports").is_dir():
             shutil.copytree(bundle / "reports", target / "ci")
     (output / "template-sources.json").write_text(json.dumps(sources, indent=2) + "\n")
 

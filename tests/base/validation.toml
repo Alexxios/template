@@ -9,6 +9,7 @@ push_workflow = "ci.yml"
 pull_request_workflow = "pull-request.yml"
 push_artifact = "github-pages"
 push_artifact_format = "pages"
+reports_path = "."
 pull_request_artifact = "check-reports"
 enable_pages = true
 
