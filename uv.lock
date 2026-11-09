@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 
 [[package]]
@@ -756,7 +756,7 @@ wheels = [
 
 [[package]]
 name = "pytest"
-version = "9.1.1"
+version = "9.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorama", marker = "sys_platform == 'win32'" },
@@ -765,9 +765,9 @@ dependencies = [
     { name = "pluggy" },
     { name = "pygments" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e4/47/b9efed96c114afcfa3c9d3fe98a76a1d14c74a9e266d397cf6eb64be5e01/pytest-9.1.1.tar.gz", hash = "sha256:1088fbde8f2b49d95a549a195707afa7a76a3ce9bcadc26b6d71f0ffda5fe313", size = 1636369, upload-time = "2026-06-19T10:58:32.857Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/79/42/bb4641652e58dedeac2ec51abc1f8cae4fee4ec63899a0999016229a0f2a/pytest-9.2.0.tar.gz", hash = "sha256:97c4f3b1f3c7414aa36465e09b8220f1d03627993bd51b1282e193753c80557b", size = 1797555, upload-time = "2026-10-27T21:30:20.728Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/24/25/1de2678b631f5a49215c6c96fff41ba892b0a34df68d6d80292b1b48aa7f/pytest-9.1.1-py3-none-any.whl", hash = "sha256:37a86b45efb9a47a61a36449063e8e18d0cab3161329fc099eb21783169c4f0c", size = 386536, upload-time = "2026-06-19T10:58:31.347Z" },
+    { url = "https://files.pythonhosted.org/packages/51/39/1f5d8c8877a0fa327db959c19341d4be61660de1ab6b7391f9eb805bcd67/pytest-9.2.0-py3-none-any.whl", hash = "sha256:07acdcf88ec174f907dc01af70bf52d49b014bbab03faeeade31c96b18c2e588", size = 411776, upload-time = "2026-10-27T21:30:19.131Z" },
 ]
 
 [[package]]
@@ -813,14 +813,14 @@ wheels = [
 
 [[package]]
 name = "python-discovery"
-version = "1.6.5"
+version = "1.9.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "filelock" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b7/ba/2bdce36c8f1b081db630c61b433fcc7efa5094ba621147923232bdaa7332/python_discovery-1.6.5.tar.gz", hash = "sha256:f9420b2107a429ec9912bd10039135fc9bb8f15e99a00e614533977529f56bb3", size = 115599, upload-time = "2026-10-27T07:11:52.519Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0f/d7/1e94df7d1636bf00b9f261bf88a4adc0414f14931ff60511eb0f34c250d1/python_discovery-1.9.4.tar.gz", hash = "sha256:c01b45fe515c1d268b57c57d554bb0e1d320b8e9eb5490bb2f4f577be26e4380", size = 140385, upload-time = "2026-11-04T05:25:52.097Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3c/41/18675fa48c8d5aaa1c4c2607716e985d482159e780f9624c2b755bb3b7e5/python_discovery-1.6.5-py3-none-any.whl", hash = "sha256:b531f0f90c4d6ec22f1f8e78996980048bd7d494b7d366b0cf98e39b293565e0", size = 38785, upload-time = "2026-10-27T07:11:50.826Z" },
+    { url = "https://files.pythonhosted.org/packages/c5/44/b248f3b1a23f44d8de172e2767748082c41cbd9353009af72f4b11b00afa/python_discovery-1.9.4-py3-none-any.whl", hash = "sha256:b468f365040b40f4cb39918b0766d3e5a2f340968e07df752fbc96f1bb4641ab", size = 44220, upload-time = "2026-11-04T05:25:50.514Z" },
 ]
 
 [[package]]
@@ -1023,7 +1023,7 @@ wheels = [
 
 [[package]]
 name = "tox"
-version = "4.67.2"
+version = "4.67.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cachetools" },
@@ -1037,9 +1037,9 @@ dependencies = [
     { name = "tomli-w" },
     { name = "virtualenv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2c/cc/590d979d858960bad441d1b3b6d5f898806132ff2b25a6cbdcbfadb0ceea/tox-4.67.2.tar.gz", hash = "sha256:be272aa5b9503fc084c82da242df124835e23cb86fc337f8e33804f011fc3ca5", size = 347457, upload-time = "2026-10-27T08:19:49.474Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5f/bf/845a53f1e8e5d3f556056144e799fe0dafb4f6c566eee2c631a51d7b20ea/tox-4.67.7.tar.gz", hash = "sha256:a153a70dc7d31560e3b365b6ad945a6868ee9b3785295bc6385d960ac4308840", size = 419038, upload-time = "2026-11-02T22:39:56.805Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6f/75/0996c8b8a32bfb2fad0241a101b68097d1a99853ab1310c313223b4ee33a/tox-4.67.2-py3-none-any.whl", hash = "sha256:429c249603ef9c99fec3871ac2d9e05d00cc7c02c110c099a2fe942bcb90fb8a", size = 238079, upload-time = "2026-10-27T08:19:47.799Z" },
+    { url = "https://files.pythonhosted.org/packages/41/9b/adbc64051d376204f50ab034835f34410f5cc3c2396f5ee2b6247ed63815/tox-4.67.7-py3-none-any.whl", hash = "sha256:35e450ff098d1f3f815dd47145208c4bf29d86ea3bee10dd57ce9d2ea378253d", size = 259873, upload-time = "2026-11-02T22:39:54.988Z" },
 ]
 
 [[package]]
